@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IrisComm - AI Eye Controlled Communication</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- Three.js Particle Background -->
+    <div id="particle-container"></div>
+    
+    <!-- Animated Background Glows -->
+    <div class="background-glows">
+        <div class="glow glow-1"></div>
+        <div class="glow glow-2"></div>
+    </div>
+
+    <!-- Main App Container -->
+    <main id="app" class="app-container">
+        <!-- Landing Screen -->
+        <section id="landing-screen" class="screen active">
+            <div class="min-h-screen flex flex-col items-center justify-center px-4 py-20 md:py-24">
+                <!-- Hero Section -->
+                <div class="text-center max-w-4xl mx-auto mb-12 animate-fade-in-up">
+                    <!-- Logo -->
+                    <div class="logo-container animate-scale-in">
+                        <div class="logo-glow"></div>
+                        <svg class="logo-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/>
+                            <circle cx="12" cy="12" r="3"/>
+                        </svg>
+                    </div>
+
+                    <!-- Title -->
+                    <h1 class="title-gradient animate-fade-in-up delay-1">
+                        IrisComm
+                    </h1>
+
+                    <!-- Tagline -->
+                    <p class="tagline animate-fade-in-up delay-2">
+                        Communicate with your eyes.
+                    </p>
+
+                    <!-- Description -->
+                    <p class="description animate-fade-in-up delay-3">
+                        AI-powered assistive communication platform that converts eye movements 
+                        into text and speech, empowering people with motor disabilities to express themselves freely.
+                    </p>
+
+                    <!-- CTA Buttons -->
+                    <div class="cta-buttons animate-fade-in-up delay-4">
+                        <button onclick="navigateTo('communication')" class="gaze-button primary xl">
+                            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+                            </svg>
+                            <span>Get Started</span>
+                            <svg class="icon icon-right" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M5 12h14M12 5l7 7-7 7"/>
+                            </svg>
+                        </button>
+                        
+                        <button onclick="navigateTo('settings')" class="gaze-button default xl">
+                            Learn More
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Stats -->
+                <div class="stats-grid animate-fade-in-up delay-5">
+                    <div class="glass-card stats-card">
+                        <div class="stat-value">100%</div>
+                        <div class="stat-label">Hands-Free</div>
+                    </div>
+                    <div class="glass-card stats-card">
+                        <div class="stat-value">&lt; 2s</div>
+                        <div class="stat-label">Response Time</div>
+                    </div>
+                    <div class="glass-card stats-card">
+                        <div class="stat-value">99.5%</div>
+                        <div class="stat-label">Accuracy</div>
+                    </div>
+                    <div class="glass-card stats-card">
+                        <div class="stat-value">24/7</div>
+                        <div class="stat-label">Support</div>
+                    </div>
+                </div>
+
+                <!-- Features Grid -->
+                <div class="features-grid animate-fade-in delay-6">
+                    <div class="glass-card feature-card">
+                        <div class="feature-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/>
+                                <circle cx="12" cy="12" r="3"/>
+                            </svg>
+                        </div>
+                        <h3>Eye Tracking</h3>
+                        <p>Control with your eyes using advanced AI gaze detection</p>
+                    </div>
+                    <div class="glass-card feature-card">
+                        <div class="feature-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/>
+                            </svg>
+                        </div>
+                        <h3>AI Predictions</h3>
+                        <p>Smart phrase suggestions powered by AI</p>
+                    </div>
+                    <div class="glass-card feature-card">
+                        <div class="feature-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/>
+                            </svg>
+                        </div>
+                        <h3>Accessibility First</h3>
+                        <p>Designed for users with motor disabilities</p>
+                    </div>
+                    <div class="glass-card feature-card">
+                        <div class="feature-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/>
+                                <path d="M12 9v4"/>
+                                <path d="M12 17h.01"/>
+                            </svg>
+                        </div>
+                        <h3>Emergency Alerts</h3>
+                        <p>Quick access to emergency assistance</p>
+                    </div>
+                </div>
+
+                <!-- Supported Conditions -->
+                <div class="conditions-section animate-fade-in-up delay-7">
+                    <p class="conditions-label">Designed for people with</p>
+                    <div class="conditions-list">
+                        <span class="condition-badge">ALS</span>
+                        <span class="condition-badge">Stroke</span>
+                        <span class="condition-badge">Spinal Cord Injury</span>
+                        <span class="condition-badge">Cerebral Palsy</span>
+                        <span class="condition-badge">Traumatic Brain Injury</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Calibration Screen -->
+        <section id="calibration-screen" class="screen">
+            <div class="min-h-screen flex flex-col items-center justify-center p-8">
+                <div class="glass-card strong calibration-container">
+                    <div class="text-center mb-8">
+                        <h2 class="screen-title">Eye Calibration</h2>
+                        <p class="screen-subtitle">Follow the dots with your eyes</p>
+                    </div>
+
+                    <div class="calibration-grid" id="calibration-grid">
+                        <!-- Calibration dots will be generated by JS -->
+                    </div>
+
+                    <div class="progress-section">
+                        <div class="progress-header">
+                            <span class="progress-label">Progress</span>
+                            <span class="progress-value" id="calibration-progress">0%</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="progress-fill"></div>
+                        </div>
+                    </div>
+
+                    <div class="calibration-actions" id="calibration-actions" style="display: none;">
+                        <button onclick="navigateTo('communication')" class="gaze-button success lg">
+                            Continue
+                        </button>
+                        <button onclick="navigateTo('communication')" class="gaze-button secondary lg">
+                            Skip
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Communication Screen -->
+        <section id="communication-screen" class="screen">
+            <div class="min-h-screen p-6 pb-32">
+                <!-- Header -->
+                <div class="screen-header">
+                    <button onclick="navigateTo('landing')" class="back-button">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="m12 19-7-7 7-7"/>
+                            <path d="M19 12H5"/>
+                        </svg>
+                    </button>
+                    
+                    <div class="ai-status">
+                        <div class="status-dot"></div>
+                        <span>AI Active</span>
+                    </div>
+
+                    <button onclick="navigateTo('emergency')" class="emergency-button gaze-button emergency sm">
+                        🚨
+                    </button>
+                </div>
+
+                <!-- Current Message -->
+                <div class="glass-card strong message-container">
+                    <div class="message-header">
+                        <span class="message-label">Current Message</span>
+                        <div class="voice-wave" id="voice-wave">
+                            <div class="wave-bar"></div>
+                            <div class="wave-bar"></div>
+                            <div class="wave-bar"></div>
+                            <div class="wave-bar"></div>
+                            <div class="wave-bar"></div>
+                            <div class="wave-bar"></div>
+                            <div class="wave-bar"></div>
+                        </div>
+                    </div>
+                    <p class="message-text" id="current-message">Start typing with your eyes...</p>
+                    <div class="message-actions">
+                        <button onclick="toggleSpeech()" class="gaze-button primary md">
+                            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+                                <path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
+                                <path d="M19.07 4.93a10 10 0 0 1 0 14.14"/>
+                            </svg>
+                            Speak
+                        </button>
+                        <button onclick="sendMessage()" class="gaze-button success md">
+                            Send
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Emotion Status -->
+                <div class="glass-card emotion-container">
+                    <h3 class="card-title">Emotion Status</h3>
+                    <div class="emotion-grid">
+                        <button onclick="setEmotion('calm')" class="emotion-btn" data-emotion="calm">
+                            <span class="emotion-icon">😌</span>
+                            <span>Calm</span>
+                        </button>
+                        <button onclick="setEmotion('stressed')" class="emotion-btn" data-emotion="stressed">
+                            <span class="emotion-icon">😟</span>
+                            <span>Stressed</span>
+                        </button>
+                        <button onclick="setEmotion('pain')" class="emotion-btn" data-emotion="pain">
+                            <span class="emotion-icon">😖</span>
+                            <span>Pain</span>
+                        </button>
+                        <button onclick="setEmotion('happy')" class="emotion-btn" data-emotion="happy">
+                            <span class="emotion-icon">😊</span>
+                            <span>Happy</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- AI Suggestions -->
+                <div class="glass-card suggestions-container">
+                    <h3 class="card-title">AI Suggestions</h3>
+                    <div class="suggestions-list">
+                        <button onclick="addText('I need water')" class="gaze-button secondary sm suggestion">I need water</button>
+                        <button onclick="addText('I feel pain')" class="gaze-button secondary sm suggestion">I feel pain</button>
+                        <button onclick="addText('Please call caregiver')" class="gaze-button secondary sm suggestion">Please call caregiver</button>
+                        <button onclick="addText("I'm tired")" class="gaze-button secondary sm suggestion">I'm tired</button>
+                    </div>
+                </div>
+
+                <!-- Quick Actions -->
+                <div class="quick-actions-grid">
+                    <button onclick="navigateTo('phrases')" class="glass-card action-card">
+                        <svg class="action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/>
+                        </svg>
+                        <span>Phrases</span>
+                    </button>
+                    <button onclick="navigateTo('speech')" class="glass-card action-card">
+                        <svg class="action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/>
+                            <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                            <line x1="12" x2="12" y1="19" y2="22"/>
+                        </svg>
+                        <span>Speech</span>
+                    </button>
+                    <button onclick="navigateTo('settings')" class="glass-card action-card">
+                        <svg class="action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/>
+                            <circle cx="12" cy="12" r="3"/>
+                        </svg>
+                        <span>Settings</span>
+                    </button>
+                    <button onclick="navigateTo('emergency')" class="glass-card action-card">
+                        <svg class="action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/>
+                            <path d="M12 9v4"/>
+                            <path d="M12 17h.01"/>
+                        </svg>
+                        <span>Emergency</span>
+                    </button>
+                </div>
+
+                <!-- Keyboard -->
+                <div class="glass-card keyboard-container">
+                    <h3 class="card-title">Gaze Keyboard</h3>
+                    <div class="keyboard">
+                        <div class="keyboard-row">
+                            <button onclick="handleKeyPress('Q')" class="key-btn">Q</button>
+                            <button onclick="handleKeyPress('W')" class="key-btn">W</button>
+                            <button onclick="handleKeyPress('E')" class="key-btn">E</button>
+                            <button onclick="handleKeyPress('R')" class="key-btn">R</button>
+                            <button onclick="handleKeyPress('T')" class="key-btn">T</button>
+                            <button onclick="handleKeyPress('Y')" class="key-btn">Y</button>
+                            <button onclick="handleKeyPress('U')" class="key-btn">U</button>
+                            <button onclick="handleKeyPress('I')" class="key-btn">I</button>
+                            <button onclick="handleKeyPress('O')" class="key-btn">O</button>
+                            <button onclick="handleKeyPress('P')" class="key-btn">P</button>
+                        </div>
+                        <div class="keyboard-row">
+                            <button onclick="handleKeyPress('A')" class="key-btn">A</button>
+                            <button onclick="handleKeyPress('S')" class="key-btn">S</button>
+                            <button onclick="handleKeyPress('D')" class="key-btn">D</button>
+                            <button onclick="handleKeyPress('F')" class="key-btn">F</button>
+                            <button onclick="handleKeyPress('G')" class="key-btn">G</button>
+                            <button onclick="handleKeyPress('H')" class="key-btn">H</button>
+                            <button onclick="handleKeyPress('J')" class="key-btn">J</button>
+                            <button onclick="handleKeyPress('K')" class="key-btn">K</button>
+                            <button onclick="handleKeyPress('L')" class="key-btn">L</button>
+                        </div>
+                        <div class="keyboard-row">
+                            <button onclick="handleKeyPress('Z')" class="key-btn">Z</button>
+                            <button onclick="handleKeyPress('X')" class="key-btn">X</button>
+                            <button onclick="handleKeyPress('C')" class="key-btn">C</button>
+                            <button onclick="handleKeyPress('V')" class="key-btn">V</button>
+                            <button onclick="handleKeyPress('B')" class="key-btn">B</button>
+                            <button onclick="handleKeyPress('N')" class="key-btn">N</button>
+                            <button onclick="handleKeyPress('M')" class="key-btn">M</button>
+                            <button onclick="handleKeyPress('⌫')" class="key-btn backspace">⌫</button>
+                            <button onclick="handleKeyPress('CLR')" class="key-btn clear">CLR</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Emergency Screen -->
+        <section id="emergency-screen" class="screen">
+            <div class="min-h-screen flex flex-col items-center justify-center p-8 emergency-bg">
+                <div class="emergency-pulse-container">
+                    <svg class="emergency-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/>
+                        <path d="M12 9v4"/>
+                        <path d="M12 17h.01"/>
+                    </svg>
+                    <h2 class="emergency-title">EMERGENCY</h2>
+                    <p class="emergency-subtitle">Press to send alert</p>
+                </div>
+
+                <button onclick="sendEmergencyAlert()" class="gaze-button emergency xl emergency-btn">
+                    SEND EMERGENCY ALERT
+                </button>
+
+                <div class="emergency-actions">
+                    <button onclick="callCaregiver()" class="gaze-button primary lg">
+                        Call Caregiver
+                    </button>
+                    <button onclick="navigateTo('communication')" class="gaze-button secondary lg">
+                        Back
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Phrases Screen -->
+        <section id="phrases-screen" class="screen">
+            <div class="min-h-screen p-6 pb-32">
+                <div class="screen-header">
+                    <button onclick="goBackFromPhrases()" class="back-button">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="m12 19-7-7 7-7"/>
+                            <path d="M19 12H5"/>
+                        </svg>
+                    </button>
+                    <h2 class="screen-title-large">Phrase Library</h2>
+                </div>
+
+                <!-- Category View -->
+                <div id="phrase-categories" class="categories-grid">
+                    <button onclick="showPhrases('medical')" class="glass-card category-card">
+                        <div class="category-icon medical">🏥</div>
+                        <h3>Medical</h3>
+                    </button>
+                    <button onclick="showPhrases('food')" class="glass-card category-card">
+                        <div class="category-icon food">🍽️</div>
+                        <h3>Food & Drink</h3>
+                    </button>
+                    <button onclick="showPhrases('emotions')" class="glass-card category-card">
+                        <div class="category-icon emotions">😊</div>
+                        <h3>Emotions</h3>
+                    </button>
+                    <button onclick="showPhrases('requests')" class="glass-card category-card">
+                        <div class="category-icon requests">🙏</div>
+                        <h3>Requests</h3>
+                    </button>
+                    <button onclick="showPhrases('social')" class="glass-card category-card">
+                        <div class="category-icon social">💬</div>
+                        <h3>Social</h3>
+                    </button>
+                    <button onclick="showPhrases('emergency')" class="glass-card category-card">
+                        <div class="category-icon emergency">🚨</div>
+                        <h3>Emergency</h3>
+                    </button>
+                </div>
+
+                <!-- Phrases View -->
+                <div id="phrase-list" class="phrase-list-container" style="display: none;">
+                    <h3 class="category-title" id="selected-category-name"></h3>
+                    <div id="phrases-content" class="phrases-content"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Speech Screen -->
+        <section id="speech-screen" class="screen">
+            <div class="min-h-screen p-6 pb-32">
+                <div class="screen-header">
+                    <button onclick="navigateTo('communication')" class="back-button">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="m12 19-7-7 7-7"/>
+                            <path d="M19 12H5"/>
+                        </svg>
+                    </button>
+                    <h2 class="screen-title-large">Speech Output</h2>
+                </div>
+
+                <div class="glass-card strong speech-container">
+                    <div class="speech-header">
+                        <span class="speech-label">Current Message</span>
+                        <svg class="speech-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+                            <path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
+                            <path d="M19.07 4.93a10 10 0 0 1 0 14.14"/>
+                        </svg>
+                    </div>
+                    <p class="speech-text" id="speech-message">No message to speak</p>
+                    <button onclick="toggleSpeech()" class="gaze-button primary lg" id="play-pause-btn">
+                        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polygon points="5 3 19 12 5 21 5 3"/>
+                        </svg>
+                        Play
+                    </button>
+                </div>
+
+                <div class="glass-card speed-container">
+                    <h3 class="card-title">Voice Speed: <span id="speed-value">1.0</span>x</h3>
+                    <div class="speed-buttons">
+                        <button onclick="setSpeed(0.5)" class="gaze-button secondary sm speed-btn">0.5x</button>
+                        <button onclick="setSpeed(0.75)" class="gaze-button secondary sm speed-btn">0.75x</button>
+                        <button onclick="setSpeed(1.0)" class="gaze-button secondary sm speed-btn">1.0x</button>
+                        <button onclick="setSpeed(1.25)" class="gaze-button secondary sm speed-btn">1.25x</button>
+                        <button onclick="setSpeed(1.5)" class="gaze-button secondary sm speed-btn">1.5x</button>
+                        <button onclick="setSpeed(1.75)" class="gaze-button secondary sm speed-btn">1.75x</button>
+                        <button onclick="setSpeed(2.0)" class="gaze-button secondary sm speed-btn">2.0x</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Settings Screen -->
+        <section id="settings-screen" class="screen">
+            <div class="min-h-screen p-6 pb-32">
+                <div class="screen-header">
+                    <button onclick="navigateTo('communication')" class="back-button">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="m12 19-7-7 7-7"/>
+                            <path d="M19 12H5"/>
+                        </svg>
+                    </button>
+                    <h2 class="screen-title-large">Settings</h2>
+                </div>
+
+                <div class="settings-container">
+                    <!-- Eye Tracking Settings -->
+                    <div class="glass-card settings-section">
+                        <h3 class="settings-title">
+                            <svg class="settings-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/>
+                                <circle cx="12" cy="12" r="3"/>
+                            </svg>
+                            Eye Tracking
+                        </h3>
+                        <div class="setting-group">
+                            <label class="setting-label">Dwell Time</label>
+                            <div class="dwell-buttons">
+                                <button onclick="setDwellTime(1000)" class="gaze-button secondary sm dwell-btn" data-dwell="1000">1000ms</button>
+                                <button onclick="setDwellTime(1500)" class="gaze-button secondary sm dwell-btn" data-dwell="1500">1500ms</button>
+                                <button onclick="setDwellTime(2000)" class="gaze-button secondary sm dwell-btn" data-dwell="2000">2000ms</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Voice Settings -->
+                    <div class="glass-card settings-section">
+                        <h3 class="settings-title">
+                            <svg class="settings-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+                                <path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
+                                <path d="M19.07 4.93a10 10 0 0 1 0 14.14"/>
+                            </svg>
+                            Voice & Speech
+                        </h3>
+                        <div class="setting-group">
+                            <label class="setting-label">Speech Speed: <span id="settings-speed-value">1.0</span>x</label>
+                            <input type="range" min="0.5" max="2" step="0.1" value="1" class="speed-slider" id="speed-slider">
+                        </div>
+                    </div>
+
+                    <!-- Emergency Contacts -->
+                    <div class="glass-card settings-section">
+                        <h3 class="settings-title">
+                            <svg class="settings-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/>
+                                <path d="M12 9v4"/>
+                                <path d="M12 17h.01"/>
+                            </svg>
+                            Emergency Contacts
+                        </h3>
+                        <button onclick="addContact()" class="gaze-button primary md">
+                            + Add Contact
+                        </button>
+                    </div>
+
+                    <!-- App Info -->
+                    <div class="glass-card subtle app-info">
+                        <div class="text-center">
+                            <h3 class="app-version-title">IrisComm</h3>
+                            <p class="app-version">Version 1.0.0</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Navigation Bar -->
+    <nav class="navigation">
+        <div class="nav-container">
+            <button onclick="navigateTo('landing')" class="nav-item" data-screen="landing">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+                    <polyline points="9 22 9 12 15 12 15 22"/>
+                </svg>
+                <span>Home</span>
+            </button>
+            <button onclick="startCalibration()" class="nav-item" data-screen="calibration">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/>
+                    <circle cx="12" cy="12" r="3"/>
+                </svg>
+                <span>Calibrate</span>
+            </button>
+            <button onclick="navigateTo('communication')" class="nav-item" data-screen="communication">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                </svg>
+                <span>Communicate</span>
+            </button>
+            <button onclick="navigateTo('speech')" class="nav-item" data-screen="speech">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+                    <path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
+                    <path d="M19.07 4.93a10 10 0 0 1 0 14.14"/>
+                </svg>
+                <span>Speech</span>
+            </button>
+            <button onclick="navigateTo('phrases')" class="nav-item" data-screen="phrases">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/>
+                </svg>
+                <span>Phrases</span>
+            </button>
+            <button onclick="navigateTo('emergency')" class="nav-item emergency-nav" data-screen="emergency">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/>
+                    <path d="M12 9v4"/>
+                    <path d="M12 17h.01"/>
+                </svg>
+                <span>Emergency</span>
+            </button>
+            <button onclick="navigateTo('settings')" class="nav-item" data-screen="settings">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/>
+                    <circle cx="12" cy="12" r="3"/>
+                </svg>
+                <span>Settings</span>
+            </button>
+        </div>
+    </nav>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
