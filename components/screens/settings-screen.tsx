@@ -12,10 +12,16 @@ import {
   WifiOff,
   Moon,
   Sun,
-  Volume2
+  Volume2,
+  Zap,
+  Heart,
+  Shield,
+  AlertCircle,
+  EyeOff,
+  Accessibility,
 } from "lucide-react";
 import { GlassCard } from "@/components/ui/glass-card";
-import { GazeButton } from "@/components/ui/gaze-button";
+import { GazeButton } from "@/components/ui/GazeButton";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
@@ -50,15 +56,37 @@ export function SettingsScreen() {
     careNotes,
     setCareNotes,
     setIsCalibrated,
+    setCalibrationProgress,
     setCurrentScreen,
+    startDemoMode,
+    audioFeedback,
+    setAudioFeedback,
+    dwellPresets,
+    setDwellPresets,
+    visualFeedback,
+    setVisualFeedback,
+    bloodType,
+    setBloodType,
+    medicalConditions,
+    setMedicalConditions,
+    medications,
+    setMedications,
+    emergencyMedicalInfo,
+    setEmergencyMedicalInfo,
+    inactivityTimeout,
+    setInactivityTimeout,
+    autoAlertEnabled,
+    setAutoAlertEnabled,
   } = useAppStore();
 
   const { theme, setTheme } = useTheme();
   const [offlineMode, setOfflineMode] = useState(false);
-  const [soundFeedback, setSoundFeedback] = useState(true);
+  const [newCondition, setNewCondition] = useState("");
+  const [newMed, setNewMed] = useState("");
 
   const handleResetCalibration = () => {
     setIsCalibrated(false);
+    setCalibrationProgress(0);
     setCurrentScreen("calibration");
   };
 
@@ -131,6 +159,92 @@ export function SettingsScreen() {
               </div>
             </div>
 
+            {/* Dwell Presets */}
+            <div className="mb-6">
+              <Label className="flex items-center gap-2 mb-3">
+                <Zap className="w-4 h-4" />
+                Quick Presets
+              </Label>
+              <div className="grid grid-cols-3 gap-2">
+                {(["fast", "normal", "precise"] as const).map((preset) => (
+                  <GazeButton
+                    key={preset}
+                    variant={dwellPresets === preset ? "primary" : "default"}
+                    size="sm"
+                    onClick={() => setDwellPresets(preset)}
+                    onGazeSelect={() => setDwellPresets(preset)}
+                    dwellTime={dwellTime}
+                  >
+                    {preset.charAt(0).toUpperCase() + preset.slice(1)}
+                  </GazeButton>
+                ))}
+              </div>
+            </div>
+
+            {/* Visual Feedback */}
+            <div className="mb-6">
+              <Label className="flex items-center gap-2 mb-3">
+                <Eye className="w-4 h-4" />
+                Visual Feedback
+              </Label>
+              <div className="grid grid-cols-3 gap-2">
+                {(["highlight", "cursor", "both"] as const).map((fb) => (
+                  <GazeButton
+                    key={fb}
+                    variant={visualFeedback === fb ? "primary" : "default"}
+                    size="sm"
+                    onClick={() => setVisualFeedback(fb)}
+                    onGazeSelect={() => setVisualFeedback(fb)}
+                    dwellTime={dwellTime}
+                  >
+                    {fb.charAt(0).toUpperCase() + fb.slice(1)}
+                  </GazeButton>
+                ))}
+              </div>
+            </div>
+
+            {/* Audio Feedback Toggle */}
+            <div className="flex items-center justify-between mb-6">
+              <Label className="flex items-center gap-2">
+                <Volume2 className="w-4 h-4" />
+                Audio Feedback
+              </Label>
+              <Switch
+                checked={audioFeedback}
+                onCheckedChange={setAudioFeedback}
+              />
+            </div>
+
+            {/* Inactivity Auto-Alert */}
+            <div className="mb-6 p-4 rounded-xl bg-yellow-500/10 border border-yellow-500/20">
+              <div className="flex items-center justify-between mb-3">
+                <Label className="flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 text-yellow-500" />
+                  Auto Alert (Inactivity)
+                </Label>
+                <Switch
+                  checked={autoAlertEnabled}
+                  onCheckedChange={setAutoAlertEnabled}
+                />
+              </div>
+              {autoAlertEnabled && (
+                <div>
+                  <Slider
+                    value={[inactivityTimeout]}
+                    onValueChange={([value]) => setInactivityTimeout(value)}
+                    min={1}
+                    max={30}
+                    step={1}
+                  />
+                  <div className="flex justify-between text-xs text-muted-foreground mt-2">
+                    <span>1 min</span>
+                    <span>Alert after {inactivityTimeout} min of inactivity</span>
+                    <span>30 min</span>
+                  </div>
+                </div>
+              )}
+            </div>
+
             {/* Reset Calibration */}
             <GazeButton
               variant="default"
@@ -172,6 +286,50 @@ export function SettingsScreen() {
                 </GazeButton>
               ))}
             </div>
+          </GlassCard>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.35 }}
+        >
+          <GlassCard variant="default">
+            <details className="group">
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <BrainCircuit className="w-5 h-5 text-primary" />
+                  <div>
+                    <h2 className="text-lg font-semibold">Presentation Tools</h2>
+                    <p className="text-sm text-muted-foreground">
+                      Collapsed by default for live demos
+                    </p>
+                  </div>
+                </div>
+                <span className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
+                  Open
+                </span>
+              </summary>
+
+              <div className="mt-4 space-y-4 border-t border-border/60 pt-4">
+                <p className="text-sm text-muted-foreground">
+                  Local fallback mode for presentations if the third-party
+                  eye-tracking session is unavailable. This does not reset the
+                  vendor trial.
+                </p>
+                <GazeButton
+                  variant="secondary"
+                  size="md"
+                  onClick={startDemoMode}
+                  onGazeSelect={startDemoMode}
+                  dwellTime={dwellTime}
+                  className="w-full"
+                >
+                  <BrainCircuit className="w-4 h-4" />
+                  Start Presentation Mode
+                </GazeButton>
+              </div>
+            </details>
           </GlassCard>
         </motion.div>
 
@@ -306,6 +464,119 @@ export function SettingsScreen() {
                   }
                   className="mt-2 bg-background/50 h-12"
                 />
+              </div>
+
+              {/* Medical Info for Emergencies */}
+              <div className="mt-6 pt-6 border-t border-white/10">
+                <h3 className="flex items-center gap-2 text-md font-semibold mb-4">
+                  <Heart className="w-4 h-4 text-red-400" />
+                  Emergency Medical Info
+                </h3>
+              </div>
+
+              <div>
+                <Label htmlFor="blood-type">Blood Type</Label>
+                <Input
+                  id="blood-type"
+                  placeholder="e.g., A+, O-, B+"
+                  value={bloodType}
+                  onChange={(e) => setBloodType(e.target.value)}
+                  className="mt-2 bg-background/50 h-12"
+                />
+              </div>
+
+              <div>
+                <Label>Medical Conditions</Label>
+                <div className="flex gap-2 mt-2">
+                  <Input
+                    placeholder="Add condition"
+                    value={newCondition}
+                    onChange={(e) => setNewCondition(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && newCondition.trim()) {
+                        setMedicalConditions([...medicalConditions, newCondition.trim()]);
+                        setNewCondition("");
+                      }
+                    }}
+                    className="bg-background/50 h-10"
+                  />
+                  <GazeButton
+                    variant="default"
+                    size="sm"
+                    onClick={() => {
+                      if (newCondition.trim()) {
+                        setMedicalConditions([...medicalConditions, newCondition.trim()]);
+                        setNewCondition("");
+                      }
+                    }}
+                    dwellTime={dwellTime}
+                  >
+                    Add
+                  </GazeButton>
+                </div>
+                {medicalConditions.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {medicalConditions.map((c, i) => (
+                      <span key={i} className="px-2 py-1 rounded-full bg-red-500/20 text-xs flex items-center gap-1">
+                        {c}
+                        <button onClick={() => setMedicalConditions(medicalConditions.filter((_, j) => j !== i))} className="ml-1">×</button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <Label>Current Medications</Label>
+                <div className="flex gap-2 mt-2">
+                  <Input
+                    placeholder="Add medication"
+                    value={newMed}
+                    onChange={(e) => setNewMed(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && newMed.trim()) {
+                        setMedications([...medications, newMed.trim()]);
+                        setNewMed("");
+                      }
+                    }}
+                    className="bg-background/50 h-10"
+                  />
+                  <GazeButton
+                    variant="default"
+                    size="sm"
+                    onClick={() => {
+                      if (newMed.trim()) {
+                        setMedications([...medications, newMed.trim()]);
+                        setNewMed("");
+                      }
+                    }}
+                    dwellTime={dwellTime}
+                  >
+                    Add
+                  </GazeButton>
+                </div>
+                {medications.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {medications.map((m, i) => (
+                      <span key={i} className="px-2 py-1 rounded-full bg-blue-500/20 text-xs flex items-center gap-1">
+                        {m}
+                        <button onClick={() => setMedications(medications.filter((_, j) => j !== i))} className="ml-1">×</button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <Label htmlFor="emergency-notes">Emergency Medical Notes</Label>
+                <Input
+                  id="emergency-notes"
+                  placeholder="Allergies, allergies to medications, important medical info..."
+                  value={emergencyMedicalInfo}
+                  onChange={(e) => setEmergencyMedicalInfo(e.target.value)}
+                  className="mt-2 bg-background/50 h-12"
+                />
+                <p className="text-xs text-muted-foreground mt-1">This info is sent with emergency alerts</p>
               </div>
 
               <div>

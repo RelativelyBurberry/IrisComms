@@ -109,9 +109,43 @@ export function EyeTrackingKeyboard({
   const dwellTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const currentKeysRef = useRef<HTMLButtonElement | null>(null);
 
-  const { dynamicPhrases } = useAppStore();
+  const { dynamicPhrases, dwellTime, savedMessages, recentMessages } = useAppStore();
 
   const [isCompleting, setIsCompleting] = useState(false);
+  const [frequentKeys, setFrequentKeys] = useState<string[]>([]);
+  const [suggestedWords, setSuggestedWords] = useState<string[]>([]);
+
+  // Track frequently used keys
+  useEffect(() => {
+    const keyFreq: Record<string, number> = {};
+    const allMessages = [...savedMessages, ...recentMessages].join(" ").toLowerCase();
+    allMessages.split("").forEach((char) => {
+      if (char >= "a" && char <= "z") {
+        keyFreq[char] = (keyFreq[char] || 0) + 1;
+      }
+    });
+    const sorted = Object.entries(keyFreq)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 6)
+      .map(([key]) => key);
+    setFrequentKeys(sorted);
+  }, [savedMessages, recentMessages]);
+
+  // Generate word suggestions based on current text
+  useEffect(() => {
+    if (currentText.length < 2) {
+      setSuggestedWords([]);
+      return;
+    }
+    const lastWord = currentText.split(" ").pop()?.toLowerCase() || "";
+    if (lastWord.length < 2) {
+      setSuggestedWords([]);
+      return;
+    }
+    const words = [...savedMessages, ...recentMessages].join(" ").toLowerCase();
+    const uniqueWords = [...new Set(words.split(" ").filter(w => w.startsWith(lastWord) && w.length > lastWord.length))];
+    setSuggestedWords(uniqueWords.slice(0, 4));
+  }, [currentText, savedMessages, recentMessages]);
 
   const handleSmartComplete = useCallback(async () => {
     if (!currentText || isCompleting) return;
@@ -225,6 +259,9 @@ export function EyeTrackingKeyboard({
             {predictions.slice(0, 4).map((prediction, i) => (
               <motion.button
                 key={prediction}
+                data-gaze-interactive="true"
+                data-gaze-dwell={dwellTime}
+                data-gaze-stickiness="44"
                 initial={{ opacity: 0, scale: 0.8 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ delay: i * 0.05 }}
@@ -240,6 +277,9 @@ export function EyeTrackingKeyboard({
 
             {currentText.length > 3 && (
               <motion.button
+                data-gaze-interactive="true"
+                data-gaze-dwell={dwellTime}
+                data-gaze-stickiness="44"
                 initial={{ opacity: 0, scale: 0.8 }}
                 animate={{ opacity: 1, scale: 1 }}
                 whileHover={{ scale: 1.05 }}
@@ -264,9 +304,56 @@ export function EyeTrackingKeyboard({
         )}
       </AnimatePresence>
 
+      {/* Quick Access: Frequent Keys & Word Suggestions */}
+      {(frequentKeys.length > 0 || suggestedWords.length > 0) && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="flex flex-wrap gap-2 mb-3 px-4"
+        >
+          {/* Frequent Keys */}
+          {frequentKeys.length > 0 && (
+            <div className="flex items-center gap-1 mr-2">
+              <Star className="w-3 h-3 text-yellow-400" />
+              {frequentKeys.map((key) => (
+                <button
+                  key={key}
+                  onClick={() => handleKeyPress(key)}
+                  className="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center text-sm font-medium uppercase"
+                >
+                  {key}
+                </button>
+              ))}
+            </div>
+          )}
+          
+          {/* Word Suggestions */}
+          {suggestedWords.length > 0 && (
+            <div className="flex items-center gap-1 flex-1">
+              {suggestedWords.map((word) => (
+                <button
+                  key={word}
+                  onClick={() => {
+                    const lastWord = currentText.split(" ").pop() || "";
+                    const newText = currentText.slice(0, -lastWord.length) + word + " ";
+                    onTextChange(newText);
+                  }}
+                  className="px-3 py-1 rounded-lg bg-green-500/20 border border-green-500/30 text-green-300 text-sm hover:bg-green-500/30"
+                >
+                  {word}
+                </button>
+              ))}
+            </div>
+          )}
+        </motion.div>
+      )}
+
       {/* Mode Toggle */}
       <div className="flex items-center justify-center gap-2 mb-4">
         <motion.button
+          data-gaze-interactive="true"
+          data-gaze-dwell={dwellTime}
+          data-gaze-stickiness="16"
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
           onClick={() => setMode("keyboard")}
@@ -280,6 +367,9 @@ export function EyeTrackingKeyboard({
           Keyboard
         </motion.button>
         <motion.button
+          data-gaze-interactive="true"
+          data-gaze-dwell={dwellTime}
+          data-gaze-stickiness="16"
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
           onClick={() => setMode("phrases")}
@@ -302,6 +392,9 @@ export function EyeTrackingKeyboard({
               {(["qwerty", "abc", "numbers"] as const).map((l) => (
                 <button
                   key={l}
+                  data-gaze-interactive="true"
+                  data-gaze-dwell={dwellTime}
+                  data-gaze-stickiness="16"
                   onClick={() => setLayout(l)}
                   className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
                     layout === l ? "bg-indigo-600 text-white" : "text-white/60"
@@ -321,6 +414,9 @@ export function EyeTrackingKeyboard({
                   <motion.button
                     whileHover={{ scale: 1.1 }}
                     whileTap={{ scale: 0.95 }}
+                    data-gaze-interactive="true"
+                    data-gaze-dwell={1200}
+                    data-gaze-stickiness="16"
                     onMouseEnter={() => dwellStart(-2, -1, null as any)}
                     onMouseLeave={dwellEnd}
                     className={`w-14 h-12 rounded-xl flex items-center justify-center transition-all backdrop-blur-xl ${
@@ -337,6 +433,9 @@ export function EyeTrackingKeyboard({
                     key={`${rowIndex}-${keyIndex}`}
                     whileHover={{ scale: 1.15, rotate: 2 }}
                     whileTap={{ scale: 0.9 }}
+                    data-gaze-interactive="true"
+                    data-gaze-dwell={1200}
+                    data-gaze-stickiness="16"
                     onMouseEnter={(e) =>
                       dwellStart(rowIndex, keyIndex, e.currentTarget)
                     }
@@ -363,6 +462,9 @@ export function EyeTrackingKeyboard({
                   <motion.button
                     whileHover={{ scale: 1.1 }}
                     whileTap={{ scale: 0.95 }}
+                    data-gaze-interactive="true"
+                    data-gaze-dwell={1200}
+                    data-gaze-stickiness="16"
                     onMouseEnter={() => dwellStart(rowIndex, -1, null as any)}
                     onMouseLeave={dwellEnd}
                     className={`w-14 h-12 rounded-xl flex items-center justify-center transition-all backdrop-blur-xl ${
@@ -382,6 +484,9 @@ export function EyeTrackingKeyboard({
               <motion.button
                 whileHover={{ scale: 1.1 }}
                 whileTap={{ scale: 0.95 }}
+                data-gaze-interactive="true"
+                data-gaze-dwell={1200}
+                data-gaze-stickiness="16"
                 onMouseEnter={() => dwellStart(-1, -1, null as any)}
                 onMouseLeave={dwellEnd}
                 className={`w-16 h-12 rounded-xl flex items-center justify-center transition-all backdrop-blur-xl ${
@@ -398,6 +503,9 @@ export function EyeTrackingKeyboard({
               <motion.button
                 whileHover={{ scale: 1.1 }}
                 whileTap={{ scale: 0.95 }}
+                data-gaze-interactive="true"
+                data-gaze-dwell={1200}
+                data-gaze-stickiness="20"
                 onClick={() => handleKeyPress("space")}
                 className="w-48 h-12 rounded-xl flex items-center justify-center font-mono text-lg transition-all backdrop-blur-xl bg-white/5 border border-white/10 hover:bg-white/10 text-white/70"
               >
@@ -407,6 +515,9 @@ export function EyeTrackingKeyboard({
               <motion.button
                 whileHover={{ scale: 1.1 }}
                 whileTap={{ scale: 0.95 }}
+                data-gaze-interactive="true"
+                data-gaze-dwell={1200}
+                data-gaze-stickiness="16"
                 onMouseEnter={() => dwellStart(-3, -1, null as any)}
                 onMouseLeave={dwellEnd}
                 className={`w-20 h-12 rounded-xl flex items-center justify-center gap-2 transition-all backdrop-blur-xl ${
@@ -434,6 +545,9 @@ export function EyeTrackingKeyboard({
                 {dynamicPhrases.map((phrase) => (
                   <motion.button
                     key={phrase.id}
+                    data-gaze-interactive="true"
+                    data-gaze-dwell={dwellTime}
+                    data-gaze-stickiness="18"
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
                     onClick={() => handlePhraseSelect(phrase.text)}
@@ -450,6 +564,9 @@ export function EyeTrackingKeyboard({
             {PHRASES.map((category, i) => (
               <button
                 key={category.category}
+                data-gaze-interactive="true"
+                data-gaze-dwell={dwellTime}
+                data-gaze-stickiness="16"
                 onClick={() => setSelectedPhraseCategory(i)}
                 className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${
                   selectedPhraseCategory === i
@@ -466,6 +583,9 @@ export function EyeTrackingKeyboard({
             {PHRASES[selectedPhraseCategory].phrases.map((phrase) => (
               <motion.button
                 key={phrase}
+                data-gaze-interactive="true"
+                data-gaze-dwell={dwellTime}
+                data-gaze-stickiness="18"
                 whileHover={{ scale: 1.03 }}
                 whileTap={{ scale: 0.97 }}
                 onClick={() => handlePhraseSelect(phrase)}

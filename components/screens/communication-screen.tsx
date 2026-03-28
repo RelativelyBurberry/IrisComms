@@ -16,14 +16,20 @@ import {
   Fan,
   MessageSquareHeart,
   Siren,
+  Bookmark,
+  History,
+  Star,
+  Send,
+  Mic,
+  MicOff,
 } from "lucide-react";
 import { GlassCard } from "@/components/ui/glass-card";
-import { GazeButton } from "@/components/ui/gaze-button";
+import { GazeButton } from "@/components/ui/GazeButton";
 import { TypingIndicator } from "@/components/ui/typing-indicator";
 import { SpeechWave } from "@/components/ui/speech-wave";
 import { GenerativeAIPredictions } from "@/components/advanced/generative-ai-predictions";
 import { useAppStore } from "@/lib/store";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 
 const keyboardRows = [
   ["Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P"],
@@ -49,19 +55,86 @@ export function CommunicationScreen() {
     setCurrentScreen,
     updateMissionProgress,
     addScore,
+    savedMessages,
+    saveMessage,
+    recentMessages,
+    addRecentMessage,
+    audioFeedback,
   } = useAppStore();
   
   const [isConnected] = useState(true);
+  const [showSaved, setShowSaved] = useState(false);
+  const [showRecent, setShowRecent] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+  const [transcript, setTranscript] = useState("");
+  const recognitionRef = useRef<any>(null);
 
   const handleSpeak = useCallback(() => {
     if (!currentText || isSpeaking) return;
+    
+    addRecentMessage(currentText);
+    if (audioFeedback) {
+      const audio = new Audio("data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdH2LkYqKg3V0bWhUT0CAgH2Ai42dmJWNh4GAd3RxbGlVUUaAf3+BhYqQkJGPioWCf3t4d3Vvbm9xcXBubW1sa2ppaGdlZGNiYVBOTkxLSklIR0ZFRENCQUA/Pj08Ozo5OTg3NjU0MzIxMC8uLSwrKikoJyYlJCMiISAfHh0cGxoZGBcWFRQTEhEQDw8ODg4NDQ0NDQ4ODg8ODg8ODg8=");
+      audio.volume = 0.3;
+      audio.play().catch(() => {});
+    }
     
     setIsSpeaking(true);
     const utterance = new SpeechSynthesisUtterance(currentText);
     utterance.onend = () => setIsSpeaking(false);
     utterance.onerror = () => setIsSpeaking(false);
     window.speechSynthesis.speak(utterance);
-  }, [currentText, isSpeaking, setIsSpeaking]);
+  }, [currentText, isSpeaking, setIsSpeaking, addRecentMessage, audioFeedback]);
+
+  const startVoiceInput = useCallback(() => {
+    if (!("webkitSpeechRecognition" in window) && !("SpeechRecognition" in window)) {
+      alert("Voice input not supported in this browser. Try Chrome.");
+      return;
+    }
+
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    const recognition = new SpeechRecognition();
+    recognition.continuous = false;
+    recognition.interimResults = true;
+    recognition.lang = "en-US";
+
+    recognition.onstart = () => {
+      setIsListening(true);
+      setTranscript("");
+    };
+
+    recognition.onresult = (event: any) => {
+      let finalTranscript = "";
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        if (event.results[i].isFinal) {
+          finalTranscript += event.results[i][0].transcript;
+        }
+      }
+      if (finalTranscript) {
+        setTranscript(finalTranscript);
+        setCurrentText(currentText + (currentText ? " " : "") + finalTranscript);
+      }
+    };
+
+    recognition.onerror = (event: any) => {
+      console.error("Speech recognition error:", event.error);
+      setIsListening(false);
+    };
+
+    recognition.onend = () => {
+      setIsListening(false);
+    };
+
+    recognition.start();
+    recognitionRef.current = recognition;
+  }, [currentText, setCurrentText]);
+
+  const stopVoiceInput = useCallback(() => {
+    if (recognitionRef.current) {
+      recognitionRef.current.stop();
+      setIsListening(false);
+    }
+  }, []);
 
   const handlePredictionSelect = useCallback((text: string) => {
     setCurrentText(text);
@@ -214,6 +287,7 @@ export function CommunicationScreen() {
               onClick={() => handlePredictionSelect(prediction)}
               onGazeSelect={() => handlePredictionSelect(prediction)}
               dwellTime={dwellTime}
+              gazeStickiness={26}
               className="text-sm"
             >
               {prediction}
@@ -294,8 +368,55 @@ export function CommunicationScreen() {
         </div>
       </GlassCard>
 
+      {/* Voice Input Indicator */}
+      {isListening && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mb-4 p-4 rounded-xl bg-red-500/20 border border-red-500/30 flex items-center justify-center gap-3"
+        >
+          <motion.div
+            animate={{ scale: [1, 1.2, 1] }}
+            transition={{ repeat: Infinity, duration: 1 }}
+          >
+            <Mic className="w-6 h-6 text-red-400" />
+          </motion.div>
+          <span className="text-red-300">Listening... Speak now</span>
+          <GazeButton
+            variant="default"
+            size="sm"
+            onClick={stopVoiceInput}
+            onGazeSelect={stopVoiceInput}
+            dwellTime={500}
+          >
+            Stop
+          </GazeButton>
+        </motion.div>
+      )}
+
       {/* Action Buttons */}
-      <div className="flex gap-3 mb-6">
+      <div className="flex gap-3 mb-4">
+        {/* Voice Input Button */}
+        <GazeButton
+          variant={isListening ? "emergency" : "secondary"}
+          size="lg"
+          onClick={isListening ? stopVoiceInput : startVoiceInput}
+          onGazeSelect={isListening ? stopVoiceInput : startVoiceInput}
+          dwellTime={dwellTime}
+        >
+          {isListening ? (
+            <motion.div
+              animate={{ scale: [1, 1.1, 1] }}
+              transition={{ repeat: Infinity, duration: 0.5 }}
+            >
+              <MicOff className="w-6 h-6" />
+            </motion.div>
+          ) : (
+            <Mic className="w-6 h-6" />
+          )}
+        </GazeButton>
+
+        {/* Speak Button */}
         <GazeButton
           variant="primary"
           size="lg"
@@ -318,6 +439,26 @@ export function CommunicationScreen() {
         <GazeButton
           variant="default"
           size="lg"
+          onClick={() => {
+            if (currentText) {
+              saveMessage(currentText);
+              if (audioFeedback) {
+                const audio = new Audio("data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdH2LkYqKg3V0bWhUT0CAgH2Ai42dmJWNh4GAd3RxbGlVUUaAf3+BhYqQkJGPioWCf3t4d3Vvbm9xcXBubW1sa2ppaGdlZGNiYVBOTkxLSklIR0ZFRENCQUA/Pj08Ozo5OTg3NjU0MzIxMC8uLSwrKikoJyYlJCMiISAfHh0cGxoZGBcWFRQTEhEQDw8ODg4NDQ0NDQ4ODg8ODg8ODg8=");
+                audio.volume = 0.3;
+                audio.play().catch(() => {});
+              }
+            }
+          }}
+          onGazeSelect={() => currentText && saveMessage(currentText)}
+          dwellTime={dwellTime}
+          disabled={!currentText}
+        >
+          <Bookmark className="w-6 h-6" />
+        </GazeButton>
+        
+        <GazeButton
+          variant="default"
+          size="lg"
           onClick={clearText}
           onGazeSelect={clearText}
           dwellTime={dwellTime}
@@ -325,6 +466,82 @@ export function CommunicationScreen() {
           <Trash2 className="w-6 h-6" />
         </GazeButton>
       </div>
+
+      {/* Saved & Recent Messages Toggle */}
+      <div className="flex gap-2 mb-4">
+        <GazeButton
+          variant={showSaved ? "primary" : "default"}
+          size="md"
+          onClick={() => { setShowSaved(!showSaved); setShowRecent(false); }}
+          onGazeSelect={() => { setShowSaved(!showSaved); setShowRecent(false); }}
+          dwellTime={dwellTime}
+          className="flex-1"
+        >
+          <Star className="w-4 h-4" />
+          Saved ({savedMessages.length})
+        </GazeButton>
+        <GazeButton
+          variant={showRecent ? "primary" : "default"}
+          size="md"
+          onClick={() => { setShowRecent(!showRecent); setShowSaved(false); }}
+          onGazeSelect={() => { setShowRecent(!showRecent); setShowSaved(false); }}
+          dwellTime={dwellTime}
+          className="flex-1"
+        >
+          <History className="w-4 h-4" />
+          Recent ({recentMessages.length})
+        </GazeButton>
+      </div>
+
+      {/* Saved Messages */}
+      {showSaved && savedMessages.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, height: 0 }}
+          animate={{ opacity: 1, height: "auto" }}
+          className="mb-4 p-3 rounded-xl bg-white/5 border border-white/10"
+        >
+          <div className="flex flex-wrap gap-2">
+            {savedMessages.map((msg, i) => (
+              <GazeButton
+                key={i}
+                variant="secondary"
+                size="sm"
+                onClick={() => { setCurrentText(msg); setShowSaved(false); }}
+                onGazeSelect={() => { setCurrentText(msg); setShowSaved(false); }}
+                dwellTime={dwellTime}
+                className="text-xs"
+              >
+                {msg.length > 25 ? msg.slice(0, 25) + "..." : msg}
+              </GazeButton>
+            ))}
+          </div>
+        </motion.div>
+      )}
+
+      {/* Recent Messages */}
+      {showRecent && recentMessages.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, height: 0 }}
+          animate={{ opacity: 1, height: "auto" }}
+          className="mb-4 p-3 rounded-xl bg-white/5 border border-white/10"
+        >
+          <div className="flex flex-wrap gap-2">
+            {recentMessages.map((msg, i) => (
+              <GazeButton
+                key={i}
+                variant="default"
+                size="sm"
+                onClick={() => { setCurrentText(msg); setShowRecent(false); }}
+                onGazeSelect={() => { setCurrentText(msg); setShowRecent(false); }}
+                dwellTime={dwellTime}
+                className="text-xs"
+              >
+                {msg.length > 25 ? msg.slice(0, 25) + "..." : msg}
+              </GazeButton>
+            ))}
+          </div>
+        </motion.div>
+      )}
 
       {/* Virtual Keyboard */}
       <motion.div

@@ -126,9 +126,10 @@ function NeuralNetwork() {
 
 function AnimatedBackground() {
   return (
-    <div className="fixed inset-0 z-0">
+    <div className="fixed inset-0 z-0 pointer-events-none">
       <Canvas
         camera={{ position: [0, 0, 1] }}
+        className="pointer-events-none"
         gl={{ antialias: true, alpha: true }}
         dpr={[1, 2]}
       >
@@ -170,6 +171,9 @@ const GlowingButton = ({
   return (
     <motion.button
       type="button"
+      data-gaze-interactive="true"
+      data-gaze-dwell="900"
+      data-gaze-stickiness="28"
       whileHover={{ scale: 1.05 }}
       whileTap={{ scale: 0.95 }}
       onClick={onClick}
@@ -623,10 +627,13 @@ const DemoSection = () => {
                     <motion.button
                       type="button"
                       key={prediction}
+                      data-gaze-interactive="true"
+                      data-gaze-dwell="900"
+                      data-gaze-stickiness="24"
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.95 }}
                       onClick={() => setMessage(prediction)}
-                      className="p-4 rounded-xl bg-gradient-to-r from-indigo-600/20 to-purple-600/20 border border-white/10 text-white/80 hover:border-indigo-500/50 transition-all text-sm font-medium"
+                      className="p-4 rounded-xl bg-gradient-to-r from-indigo-600/20 to-purple-600/20 border border-white/10 text-white/80 hover:border-indigo-500/50 transition-all text-sm font-medium relative z-10"
                     >
                       {prediction}
                     </motion.button>

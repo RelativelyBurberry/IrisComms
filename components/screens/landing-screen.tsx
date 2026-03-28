@@ -3,7 +3,7 @@
 import { motion } from "framer-motion";
 import { Eye, Sparkles, Heart, Shield, Zap, ArrowRight } from "lucide-react";
 import { GlassCard } from "@/components/ui/glass-card";
-import { GazeButton } from "@/components/ui/gaze-button";
+import { GazeButton } from "@/components/ui/GazeButton";
 import { useAppStore } from "@/lib/store";
 
 const features = [

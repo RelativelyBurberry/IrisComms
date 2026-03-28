@@ -551,6 +551,9 @@ function HoloButton({
   return (
     <motion.button
       type="button"
+      data-gaze-interactive="true"
+      data-gaze-dwell="900"
+      data-gaze-stickiness="28"
       variants={buttonVariants}
       initial="rest"
       whileHover={!disabled ? "hover" : undefined}

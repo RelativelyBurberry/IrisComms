@@ -1,6 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { getLoadedGazeCloudAPI, loadGazeCloudAPI } from "@/lib/gazecloud";
+import type { GazeCloudResult } from "@/types/gaze";
 
 export interface GazePoint {
   x: number;
@@ -17,6 +19,7 @@ export interface Landmark {
 
 export interface EyeState {
   isTracking: boolean;
+  isCalibrated: boolean;
   gazePoint: { x: number; y: number };
   gazeDirection: "left" | "center" | "right" | "up" | "down";
   blinkCount: number;
@@ -44,30 +47,16 @@ export interface EyeTrackingOptions {
   sensitivity?: number;
 }
 
-const LEFT_EYE = [362, 385, 387, 263, 373, 380];
-const RIGHT_EYE = [33, 160, 158, 133, 153, 144];
-const LEFT_IRIS = [474, 475, 476, 477];
-const RIGHT_IRIS = [469, 470, 471, 472];
-const LEFT_EYEBROW = [336, 296, 334, 293, 300];
-const RIGHT_EYEBROW = [107, 66, 105, 63, 70];
-const MOUTH_LEFT = 61;
-const MOUTH_RIGHT = 291;
-const MOUTH_TOP = 13;
-const MOUTH_BOTTOM = 14;
-const NOSE_TIP = 4;
-const FOREHEAD = 10;
+const DEFAULT_GAZE_POINT = { x: 0.5, y: 0.5 };
+const GAZE_HISTORY_LIMIT = 30;
+const RECENT_GAZE_WINDOW = 10;
+const GAZE_SMOOTHING_ALPHA = 0.35;
 
-export function useEyeTracking(options: EyeTrackingOptions = {}) {
-  const videoRef = useRef<HTMLVideoElement | null>(null);
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const containerRef = useRef<HTMLDivElement | null>(null);
-  const faceMeshRef = useRef<any>(null);
-  const cameraRef = useRef<any>(null);
-  const animationFrameRef = useRef<number>(0);
-
-  const [eyeState, setEyeState] = useState<EyeState>({
+function createDefaultEyeState(): EyeState {
+  return {
     isTracking: false,
-    gazePoint: { x: 0.5, y: 0.5 },
+    isCalibrated: false,
+    gazePoint: DEFAULT_GAZE_POINT,
     gazeDirection: "center",
     blinkCount: 0,
     isLeftBlinking: false,
@@ -81,397 +70,269 @@ export function useEyeTracking(options: EyeTrackingOptions = {}) {
     headPose: { pitch: 0, yaw: 0, roll: 0 },
     confidence: 0,
     landmarks: [],
-  });
+  };
+}
 
+function clamp01(value: number) {
+  return Math.max(0, Math.min(1, value));
+}
+
+function getViewportSize() {
+  if (typeof window === "undefined") {
+    return { width: 1, height: 1 };
+  }
+
+  return {
+    width: Math.max(window.innerWidth, 1),
+    height: Math.max(window.innerHeight, 1),
+  };
+}
+
+function normalizeGazePoint(docX: number, docY: number) {
+  const { width, height } = getViewportSize();
+
+  return {
+    x: clamp01(docX / width),
+    y: clamp01(docY / height),
+  };
+}
+
+function smoothGazePoint(
+  nextPoint: { x: number; y: number },
+  previousPoint: { x: number; y: number } | null,
+) {
+  if (!previousPoint) {
+    return nextPoint;
+  }
+
+  return {
+    x: clamp01(
+      GAZE_SMOOTHING_ALPHA * nextPoint.x +
+        (1 - GAZE_SMOOTHING_ALPHA) * previousPoint.x,
+    ),
+    y: clamp01(
+      GAZE_SMOOTHING_ALPHA * nextPoint.y +
+        (1 - GAZE_SMOOTHING_ALPHA) * previousPoint.y,
+    ),
+  };
+}
+
+function getGazeDirection(
+  gazePoint: { x: number; y: number },
+): EyeState["gazeDirection"] {
+  if (gazePoint.x < 0.35) return "left";
+  if (gazePoint.x > 0.65) return "right";
+  if (gazePoint.y < 0.35) return "up";
+  if (gazePoint.y > 0.65) return "down";
+
+  return "center";
+}
+
+function averageRecentGazePoints(points: GazePoint[]) {
+  const recentPoints = points.slice(-RECENT_GAZE_WINDOW);
+  if (recentPoints.length === 0) {
+    return { ...DEFAULT_GAZE_POINT };
+  }
+
+  const averageX =
+    recentPoints.reduce((sum, point) => sum + point.x, 0) / recentPoints.length;
+  const averageY =
+    recentPoints.reduce((sum, point) => sum + point.y, 0) / recentPoints.length;
+
+  return {
+    x: clamp01(averageX),
+    y: clamp01(averageY),
+  };
+}
+
+export function useEyeTracking(options: EyeTrackingOptions = {}) {
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const gazeHistoryRef = useRef<GazePoint[]>([]);
+  const smoothedGazeRef = useRef<{ x: number; y: number } | null>(null);
+  const averagedGazeRef = useRef({ ...DEFAULT_GAZE_POINT });
+  const optionsRef = useRef(options);
+  const cameraStartRef = useRef(false);
+  const trackingActiveRef = useRef(false);
+  const mountedRef = useRef(true);
+  const sessionRef = useRef(0);
+
+  const [eyeState, setEyeState] = useState<EyeState>(createDefaultEyeState);
   const [isInitialized, setIsInitialized] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [cameraReady, setCameraReady] = useState(false);
 
-  const lastBlinkTimeRef = useRef<number>(0);
-  const blinkCountRef = useRef<number>(0);
-  const gazeHistoryRef = useRef<GazePoint[]>([]);
-  const lastWinkTimeRef = useRef<number>(0);
-  const lastEyebrowTimeRef = useRef<number>(0);
-  const cameraStartRef = useRef(false);
+  useEffect(() => {
+    optionsRef.current = options;
+  }, [options]);
 
-  const EAR_THRESHOLD = options.sensitivity
-    ? 0.2 + (options.sensitivity / 100) * 0.1
-    : 0.25;
-  const WINK_DURATION = 150;
-  const DOUBLE_BLINK_WINDOW = 300;
-  const WINK_COOLDOWN = 600;
-  const EYEBROW_COOLDOWN = 1200;
+  const handleTrackingLost = useCallback(() => {
+    setEyeState((prev) => ({
+      ...prev,
+      isTracking: false,
+      confidence: 0,
+    }));
+  }, []);
 
-  const calculateEAR = useCallback(
-    (eyePoints: number[], landmarks: Landmark[]): number => {
-      if (eyePoints.length < 6 || landmarks.length === 0) return 1;
+  const handleGazeResult = useCallback(
+    (gazeData: GazeCloudResult) => {
+      if (!mountedRef.current) return;
 
-      const getPoint = (idx: number) => landmarks[idx] || { x: 0, y: 0, z: 0 };
+      setCameraReady(true);
+      setError(null);
 
-      const vertical1 = Math.sqrt(
-        Math.pow(getPoint(eyePoints[1]).x - getPoint(eyePoints[5]).x, 2) +
-          Math.pow(getPoint(eyePoints[1]).y - getPoint(eyePoints[5]).y, 2),
-      );
-      const vertical2 = Math.sqrt(
-        Math.pow(getPoint(eyePoints[2]).x - getPoint(eyePoints[4]).x, 2) +
-          Math.pow(getPoint(eyePoints[2]).y - getPoint(eyePoints[4]).y, 2),
-      );
-      const horizontal = Math.sqrt(
-        Math.pow(getPoint(eyePoints[0]).x - getPoint(eyePoints[3]).x, 2) +
-          Math.pow(getPoint(eyePoints[0]).y - getPoint(eyePoints[3]).y, 2),
-      );
-
-      return (vertical1 + vertical2) / (2 * horizontal);
-    },
-    [],
-  );
-
-  const calculateGazeDirection = useCallback(
-    (landmarks: Landmark[], videoWidth: number): EyeState["gazeDirection"] => {
-      if (landmarks.length === 0) return "center";
-      const nose = landmarks[NOSE_TIP] || { x: 0, y: 0, z: 0 };
-      const leftIris = landmarks[LEFT_IRIS[0]] || { x: 0, y: 0, z: 0 };
-      const rightIris = landmarks[RIGHT_IRIS[0]] || { x: 0, y: 0, z: 0 };
-      const avgIrisX = (leftIris.x + rightIris.x) / 2;
-      const relativeX = (avgIrisX - nose.x) / videoWidth;
-      if (relativeX < -0.03) return "left";
-      if (relativeX > 0.03) return "right";
-      const forehead = landmarks[FOREHEAD] || { x: 0, y: 0, z: 0 };
-      const noseY = nose.y;
-      const relativeY = (forehead.y - noseY) / videoWidth;
-      if (relativeY < -0.05) return "up";
-      if (relativeY > 0.08) return "down";
-      return "center";
-    },
-    [],
-  );
-
-  const detectEyebrowRaise = useCallback(
-    (
-      landmarks: Landmark[],
-      videoHeight: number,
-    ): { left: boolean; right: boolean } => {
-      if (landmarks.length === 0) return { left: false, right: false };
-      const getPoint = (idx: number) => landmarks[idx] || { x: 0, y: 0, z: 0 };
-      const leftEyeTop = Math.min(...LEFT_EYE.slice(1, 5).map((i) => getPoint(i).y));
-      const leftEyebrowBottom = Math.max(...LEFT_EYEBROW.map((i) => getPoint(i).y));
-      const leftEyebrowRaise = (leftEyebrowBottom - leftEyeTop) / videoHeight > 0.03;
-      const rightEyeTop = Math.min(...RIGHT_EYE.slice(1, 5).map((i) => getPoint(i).y));
-      const rightEyebrowBottom = Math.max(...RIGHT_EYEBROW.map((i) => getPoint(i).y));
-      const rightEyebrowRaise = (rightEyebrowBottom - rightEyeTop) / videoHeight > 0.03;
-      return { left: leftEyebrowRaise, right: rightEyebrowRaise };
-    },
-    [],
-  );
-
-  const detectEmotion = useCallback(
-    (landmarks: Landmark[]): EyeState["emotion"] => {
-      if (landmarks.length === 0) return "neutral";
-
-      const mouthLeft = landmarks[MOUTH_LEFT];
-      const mouthRight = landmarks[MOUTH_RIGHT];
-      const mouthTop = landmarks[MOUTH_TOP];
-      const mouthBottom = landmarks[MOUTH_BOTTOM];
-
-      if (!mouthLeft || !mouthRight || !mouthTop || !mouthBottom) return "neutral";
-
-      // Mouth width vs height
-      const mouthWidth = Math.sqrt(
-        Math.pow(mouthRight.x - mouthLeft.x, 2) + Math.pow(mouthRight.y - mouthLeft.y, 2),
-      );
-      const mouthHeight = Math.sqrt(
-        Math.pow(mouthBottom.x - mouthTop.x, 2) + Math.pow(mouthBottom.y - mouthTop.y, 2),
-      );
-
-      // Smile detection: mouth corners are higher than center or wider
-      const mouthCenterY = (mouthTop.y + mouthBottom.y) / 2;
-      const mouthCurvature = (mouthLeft.y + mouthRight.y) / 2 - mouthCenterY;
-
-      if (mouthCurvature < -0.01) return "happy"; // corners up
-      if (mouthCurvature > 0.01) return "sad";    // corners down
-      if (mouthHeight / mouthWidth > 0.5) return "surprised"; // wide open
-
-      return "neutral";
-    },
-    [],
-  );
-
-  const calculateGazePoint = useCallback(
-    (landmarks: Landmark[], videoWidth: number, videoHeight: number): { x: number; y: number } => {
-      if (landmarks.length === 0) return { x: 0.5, y: 0.5 };
-
-      // Get iris and eye corners for better estimation
-      const leftIris = landmarks[LEFT_IRIS[0]];
-      const rightIris = landmarks[RIGHT_IRIS[0]];
-      
-      const leftEyeInner = landmarks[LEFT_EYE[0]];
-      const leftEyeOuter = landmarks[LEFT_EYE[3]];
-      const rightEyeInner = landmarks[RIGHT_EYE[0]];
-      const rightEyeOuter = landmarks[RIGHT_EYE[3]];
-
-      if (!leftIris || !rightIris || !leftEyeInner || !leftEyeOuter || !rightEyeInner || !rightEyeOuter) {
-        return { x: 0.5, y: 0.5 };
+      if (gazeData.state === -1) {
+        handleTrackingLost();
+        return;
       }
 
-      // Calculate horizontal ratio (0 to 1)
-      const leftHorizontalRatio = (leftIris.x - leftEyeInner.x) / (leftEyeOuter.x - leftEyeInner.x);
-      const rightHorizontalRatio = (rightIris.x - rightEyeInner.x) / (rightEyeOuter.x - rightEyeInner.x);
-      const horizontalRatio = (leftHorizontalRatio + rightHorizontalRatio) / 2;
+      const rawPoint = normalizeGazePoint(gazeData.docX, gazeData.docY);
+      const smoothedPoint = smoothGazePoint(rawPoint, smoothedGazeRef.current);
+      const gazeDirection = getGazeDirection(smoothedPoint);
+      const isCalibrated = gazeData.state === 0;
+      const headPose = { pitch: 0, yaw: 0, roll: 0 };
 
-      // Calculate vertical ratio (0 to 1)
-      const leftEyeTop = landmarks[LEFT_EYE[1]].y;
-      const leftEyeBottom = landmarks[LEFT_EYE[4]].y;
-      const rightEyeTop = landmarks[RIGHT_EYE[1]].y;
-      const rightEyeBottom = landmarks[RIGHT_EYE[4]].y;
-
-      const leftVerticalRatio = (leftIris.y - leftEyeTop) / (leftEyeBottom - leftEyeTop);
-      const rightVerticalRatio = (rightIris.y - rightEyeTop) / (rightEyeBottom - rightEyeTop);
-      const verticalRatio = (leftVerticalRatio + rightVerticalRatio) / 2;
-
-      // Map ratios to screen coordinates with some sensitivity adjustment
-      // Iris movements are small, so we amplify them
-      const sensitivityX = 2.5;
-      const sensitivityY = 3.5;
-      
-      let x = 0.5 + (horizontalRatio - 0.5) * sensitivityX;
-      let y = 0.5 + (verticalRatio - 0.5) * sensitivityY;
-
-      // Smooth with last value if available
-      if (gazeHistoryRef.current.length > 0) {
-        const last = gazeHistoryRef.current[gazeHistoryRef.current.length - 1];
-        x = last.x * 0.7 + x * 0.3;
-        y = last.y * 0.7 + y * 0.3;
-      }
-
-      // Clamp to [0, 1]
-      x = Math.max(0, Math.min(1, x));
-      y = Math.max(0, Math.min(1, y));
-
-      return { x, y };
-    },
-    [],
-  );
-
-  const onResults = useCallback(
-    (results: any) => {
-      if (!canvasRef.current || !videoRef.current) return;
-
-      const videoWidth = videoRef.current.videoWidth;
-      const videoHeight = videoRef.current.videoHeight;
-      const landmarks = results.multiFaceLandmarks?.[0] || [];
-      const currentTime = Date.now();
-
-      if (landmarks.length > 0) {
-        const leftEAR = calculateEAR(LEFT_EYE, landmarks);
-        const rightEAR = calculateEAR(RIGHT_EYE, landmarks);
-        const gazeDirection = calculateGazeDirection(landmarks, videoWidth);
-        const gazePoint = calculateGazePoint(landmarks, videoWidth, videoHeight);
-        const eyebrowState = detectEyebrowRaise(landmarks, videoHeight);
-        const emotion = detectEmotion(landmarks);
-
-        const isLeftBlinking = leftEAR < EAR_THRESHOLD;
-        const isRightBlinking = rightEAR < EAR_THRESHOLD;
-        const isBlinking = isLeftBlinking && isRightBlinking;
-        const isLeftWinking = isLeftBlinking && !isRightBlinking;
-        const isRightWinking = isRightBlinking && !isLeftBlinking;
-
-        // Double blink detection
-        if (isBlinking) {
-          const timeSinceLastBlink = currentTime - lastBlinkTimeRef.current;
-          if (timeSinceLastBlink > 100 && timeSinceLastBlink < DOUBLE_BLINK_WINDOW) {
-            options.onBlink?.("double");
-            setEyeState((prev) => ({ ...prev, isDoubleBlinking: true }));
-            setTimeout(() => setEyeState((prev) => ({ ...prev, isDoubleBlinking: false })), 300);
-            lastBlinkTimeRef.current = 0; // Reset
-          } else if (timeSinceLastBlink > DOUBLE_BLINK_WINDOW) {
-            lastBlinkTimeRef.current = currentTime;
-          }
-        }
-
-        // Wink detection
-        if (isLeftWinking && currentTime - lastWinkTimeRef.current > WINK_COOLDOWN) {
-          lastWinkTimeRef.current = currentTime;
-          options.onWink?.("left");
-          setEyeState((prev) => ({ ...prev, isLeftWinking: true }));
-          setTimeout(() => setEyeState((prev) => ({ ...prev, isLeftWinking: false })), WINK_DURATION);
-        } else if (isRightWinking && currentTime - lastWinkTimeRef.current > WINK_COOLDOWN) {
-          lastWinkTimeRef.current = currentTime;
-          options.onWink?.("right");
-          setEyeState((prev) => ({ ...prev, isRightWinking: true }));
-          setTimeout(() => setEyeState((prev) => ({ ...prev, isRightWinking: false })), WINK_DURATION);
-        }
-
-        const headPose = {
-          pitch: landmarks[FOREHEAD]?.y || 0,
-          yaw: landmarks[NOSE_TIP]?.x || 0,
-          roll: 0,
-        };
-
-        options.onGazeChange?.(gazeDirection);
-        options.onHeadPoseChange?.(headPose);
-
-        if (
-          (eyebrowState.left || eyebrowState.right) &&
-          currentTime - lastEyebrowTimeRef.current > EYEBROW_COOLDOWN
-        ) {
-          lastEyebrowTimeRef.current = currentTime;
-          options.onEyebrowRaise?.(eyebrowState.left ? "left" : "right");
-        }
-
-        if (emotion !== eyeState.emotion) {
-          options.onEmotionChange?.(emotion);
-        }
-
-        setEyeState((prev) => ({
-          ...prev,
-          isTracking: true,
-          gazePoint,
-          gazeDirection,
-          isLeftBlinking,
-          isRightBlinking,
-          leftEyebrowRaised: eyebrowState.left,
-          rightEyebrowRaised: eyebrowState.right,
-          emotion,
-          headPose,
-          confidence: 0.95,
-          landmarks: landmarks,
-        }));
-
-        gazeHistoryRef.current.push({
-          ...gazePoint,
-          timestamp: currentTime,
-        });
-        if (gazeHistoryRef.current.length > 30) gazeHistoryRef.current.shift();
-      } else {
-        setEyeState((prev) => ({ ...prev, isTracking: false, confidence: 0 }));
-      }
-    },
-    [
-      calculateEAR,
-      calculateGazeDirection,
-      calculateGazePoint,
-      detectEyebrowRaise,
-      options,
-      EAR_THRESHOLD,
-      DOUBLE_BLINK_WINDOW,
-      WINK_DURATION,
-    ],
-  );
-
-  const initializeEyeTracking = useCallback(async () => {
-    if (typeof window === "undefined") return;
-    if (isInitialized) return;
-
-    try {
-      // Use dynamic imports but with proper error handling and type casting if needed
-      const FaceMeshModule = await import("@mediapipe/face_mesh");
-      const CameraModule = await import("@mediapipe/camera_utils");
-
-      // Some environments might need .default depending on how they are bundled
-      const FaceMesh = FaceMeshModule.FaceMesh || (FaceMeshModule as any).default;
-      const Camera = CameraModule.Camera || (CameraModule as any).default;
-
-      if (!FaceMesh || !Camera) {
-        throw new Error("MediaPipe modules not found");
-      }
-
-      const faceMesh = new FaceMesh({
-        locateFile: (file: string) =>
-          `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4/${file}`,
+      smoothedGazeRef.current = smoothedPoint;
+      gazeHistoryRef.current.push({
+        ...smoothedPoint,
+        timestamp: gazeData.time || Date.now(),
       });
 
-      faceMesh.setOptions({
-        maxNumFaces: 1,
-        refineLandmarks: true,
-        minDetectionConfidence: 0.5,
-        minTrackingConfidence: 0.5,
-      });
-
-      faceMesh.onResults(onResults);
-      faceMeshRef.current = faceMesh;
-
-      if (videoRef.current) {
-        const camera = new Camera(videoRef.current, {
-          onFrame: async () => {
-            if (videoRef.current && faceMeshRef.current) {
-              await faceMeshRef.current.send({ image: videoRef.current });
-            }
-          },
-          width: 640,
-          height: 480,
-        });
-
-        camera.start().then(() => {
-          setCameraReady(true);
-        });
-
-        cameraRef.current = camera;
+      if (gazeHistoryRef.current.length > GAZE_HISTORY_LIMIT) {
+        gazeHistoryRef.current.shift();
       }
 
-      setIsInitialized(true);
-    } catch (err) {
-      console.error("Failed to initialize eye tracking:", err);
-      setError(
-        "Failed to initialize eye tracking. Please ensure camera access is granted.",
-      );
+      averagedGazeRef.current = averageRecentGazePoints(gazeHistoryRef.current);
+
+      optionsRef.current.onGazeChange?.(gazeDirection);
+      optionsRef.current.onHeadPoseChange?.(headPose);
+
+      setEyeState((prev) => ({
+        ...prev,
+        isTracking: true,
+        isCalibrated,
+        gazePoint: smoothedPoint,
+        gazeDirection,
+        emotion: "neutral",
+        headPose,
+        confidence: isCalibrated ? 0.95 : 0.5,
+        landmarks: [],
+        isLeftBlinking: false,
+        isRightBlinking: false,
+        isLeftWinking: false,
+        isRightWinking: false,
+        isDoubleBlinking: false,
+        leftEyebrowRaised: false,
+        rightEyebrowRaised: false,
+      }));
+    },
+    [handleTrackingLost],
+  );
+
+  const stopCamera = useCallback(() => {
+    sessionRef.current += 1;
+    trackingActiveRef.current = false;
+    cameraStartRef.current = false;
+
+    const api = getLoadedGazeCloudAPI();
+    if (api) {
+      api.OnResult = null;
+      api.OnCalibrationComplete = null;
+      api.OnCamDenied = null;
+      api.OnError = null;
+
+      try {
+        api.StopEyeTracking();
+      } catch (stopError) {
+        console.warn("Failed to stop GazeCloudAPI cleanly:", stopError);
+      }
     }
-  }, [isInitialized, onResults]);
+
+    if (videoRef.current?.srcObject instanceof MediaStream) {
+      videoRef.current.srcObject.getTracks().forEach((track) => track.stop());
+      videoRef.current.srcObject = null;
+    }
+
+    gazeHistoryRef.current = [];
+    smoothedGazeRef.current = null;
+    averagedGazeRef.current = { ...DEFAULT_GAZE_POINT };
+    setEyeState(createDefaultEyeState());
+    setCameraReady(false);
+    setIsInitialized(false);
+  }, []);
 
   const startCamera = useCallback(async () => {
-    if (!videoRef.current || cameraStartRef.current || cameraReady) return;
+    if (cameraStartRef.current || trackingActiveRef.current) return;
+
+    cameraStartRef.current = true;
+    const sessionId = sessionRef.current + 1;
+    sessionRef.current = sessionId;
+    setError(null);
 
     try {
-      cameraStartRef.current = true;
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "user", width: 640, height: 480 },
-        audio: false,
-      });
-      videoRef.current.srcObject = stream;
-      await videoRef.current.play();
-      await initializeEyeTracking();
-    } catch (err) {
-      console.error("Camera access denied:", err);
-      setError("Camera access denied. Please enable camera permissions.");
+      const api = await loadGazeCloudAPI();
+      if (!mountedRef.current || sessionRef.current !== sessionId) return;
+
+      api.UseClickRecalibration = false;
+      api.OnResult = (gazeData) => {
+        if (sessionRef.current !== sessionId) return;
+        handleGazeResult(gazeData);
+      };
+      api.OnCalibrationComplete = () => {
+        if (!mountedRef.current || sessionRef.current !== sessionId) return;
+
+        setCameraReady(true);
+        setEyeState((prev) => ({
+          ...prev,
+          isCalibrated: true,
+        }));
+      };
+      api.OnCamDenied = () => {
+        if (!mountedRef.current || sessionRef.current !== sessionId) return;
+
+        trackingActiveRef.current = false;
+        setCameraReady(false);
+        setError("Camera access denied. Please enable camera permissions.");
+        handleTrackingLost();
+      };
+      api.OnError = (message) => {
+        if (!mountedRef.current || sessionRef.current !== sessionId) return;
+
+        trackingActiveRef.current = false;
+        setCameraReady(false);
+        setError(message || "Failed to initialize GazeCloudAPI.");
+        handleTrackingLost();
+      };
+
+      api.StartEyeTracking();
+      trackingActiveRef.current = true;
+      setIsInitialized(true);
+    } catch (startError) {
+      trackingActiveRef.current = false;
+      setIsInitialized(false);
+      setCameraReady(false);
+      setError(
+        startError instanceof Error
+          ? startError.message
+          : "Failed to load GazeCloudAPI.",
+      );
     } finally {
       cameraStartRef.current = false;
     }
-  }, [cameraReady, initializeEyeTracking]);
-
-  const stopCamera = useCallback(() => {
-    cameraStartRef.current = false;
-    if (cameraRef.current) {
-      cameraRef.current.stop();
-      cameraRef.current = null;
-    }
-    if (videoRef.current?.srcObject) {
-      const tracks = (videoRef.current.srcObject as MediaStream).getTracks();
-      tracks.forEach((track) => track.stop());
-      videoRef.current.srcObject = null;
-    }
-    if (faceMeshRef.current) {
-      faceMeshRef.current.close();
-      faceMeshRef.current = null;
-    }
-    setIsInitialized(false);
-    setCameraReady(false);
-  }, []);
+  }, [handleGazeResult, handleTrackingLost]);
 
   useEffect(() => {
+    mountedRef.current = true;
+
     return () => {
+      mountedRef.current = false;
       stopCamera();
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
-      }
     };
   }, [stopCamera]);
 
   const getGazePosition = useCallback(() => {
-    const recent = gazeHistoryRef.current.slice(-10);
-    if (recent.length === 0) return { x: 0.5, y: 0.5 };
-
-    const avgX = recent.reduce((sum, p) => sum + p.x, 0) / recent.length;
-    const avgY = recent.reduce((sum, p) => sum + p.y, 0) / recent.length;
-    return { x: avgX, y: avgY };
+    return averagedGazeRef.current;
   }, []);
 
   return {
@@ -506,7 +367,13 @@ export function useGazeSelection(
 
   useEffect(() => {
     const checkHover = () => {
-      if (!options.targets || options.targets.length === 0 || typeof window === "undefined") return;
+      if (
+        !options.targets ||
+        options.targets.length === 0 ||
+        typeof window === "undefined"
+      ) {
+        return;
+      }
 
       const screenX = gazePosition.x * window.innerWidth;
       const screenY = gazePosition.y * window.innerHeight;

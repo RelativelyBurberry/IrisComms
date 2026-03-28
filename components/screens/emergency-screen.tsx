@@ -2,10 +2,18 @@
 
 import { motion, AnimatePresence } from "framer-motion";
 import { useState, useEffect, useCallback } from "react";
-import { AlertTriangle, Phone, MessageCircle, X, Check, User } from "lucide-react";
+import { AlertTriangle, Phone, MessageCircle, X, Check, User, Heart, Shield, AlertOctagon } from "lucide-react";
 import { GlassCard } from "@/components/ui/glass-card";
-import { GazeButton } from "@/components/ui/gaze-button";
+import { GazeButton } from "@/components/ui/GazeButton";
 import { useAppStore } from "@/lib/store";
+
+type AlertLevel = "warning" | "urgent" | "critical";
+
+const alertLevels: { level: AlertLevel; label: string; dwell: number; color: string }[] = [
+  { level: "warning", label: "Warning", dwell: 2000, color: "bg-yellow-500" },
+  { level: "urgent", label: "Urgent", dwell: 1500, color: "bg-orange-500" },
+  { level: "critical", label: "Critical", dwell: 800, color: "bg-red-600" },
+];
 
 const emergencyMessages = [
   "I need immediate assistance",
@@ -15,11 +23,22 @@ const emergencyMessages = [
 ];
 
 export function EmergencyScreen() {
-  const { caregiverContact, dwellTime, triggerEmergency } = useAppStore();
+  const { 
+    caregiverContact, 
+    dwellTime, 
+    triggerEmergency,
+    bloodType,
+    medicalConditions,
+    medications,
+    emergencyMedicalInfo,
+    patientName,
+  } = useAppStore();
   const [isEmergencyTriggered, setIsEmergencyTriggered] = useState(false);
   const [countdown, setCountdown] = useState(5);
   const [isSent, setIsSent] = useState(false);
   const [selectedMessage, setSelectedMessage] = useState(emergencyMessages[0]);
+  const [alertLevel, setAlertLevel] = useState<AlertLevel>("urgent");
+  const [showMedicalInfo, setShowMedicalInfo] = useState(false);
 
   const beginEmergencySequence = useCallback(() => {
     setIsEmergencyTriggered(true);
@@ -35,18 +54,22 @@ export function EmergencyScreen() {
   useEffect(() => {
     if (!isEmergencyTriggered || isSent) return;
 
+    const currentLevel = alertLevels.find(a => a.level === alertLevel);
+    const countdownTime = currentLevel?.dwell ? Math.ceil(currentLevel.dwell / 1000) : 5;
+
     if (countdown > 0) {
       const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
       return () => clearTimeout(timer);
     } else {
+      const fullMessage = `${selectedMessage}${bloodType || medicalConditions.length > 0 || medications.length > 0 ? `\n\nMedical Info: ${patientName || 'Patient'}${bloodType ? `\nBlood Type: ${bloodType}` : ''}${medicalConditions.length > 0 ? `\nConditions: ${medicalConditions.join(', ')}` : ''}${medications.length > 0 ? `\nMedications: ${medications.join(', ')}` : ''}${emergencyMedicalInfo ? `\n${emergencyMedicalInfo}` : ''}` : ''}`;
       triggerEmergency({
-        type: "Manual Emergency Alert",
+        type: `${alertLevel.charAt(0).toUpperCase() + alertLevel.slice(1)} Alert - ${currentLevel?.label}`,
         status: "Alert Sent",
-        message: selectedMessage,
+        message: fullMessage,
       });
       setIsSent(true);
     }
-  }, [countdown, isEmergencyTriggered, isSent, selectedMessage, triggerEmergency]);
+  }, [countdown, isEmergencyTriggered, isSent, selectedMessage, triggerEmergency, alertLevel, bloodType, medicalConditions, medications, emergencyMedicalInfo, patientName]);
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center px-4 py-20">
@@ -77,7 +100,7 @@ export function EmergencyScreen() {
             </p>
 
             {/* Caregiver Contact */}
-            <GlassCard variant="subtle" className="mb-8 text-left">
+            <GlassCard variant="subtle" className="mb-6 text-left">
               <div className="flex items-center gap-3 mb-4">
                 <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center">
                   <User className="w-6 h-6 text-primary" />
@@ -89,6 +112,55 @@ export function EmergencyScreen() {
                   </p>
                 </div>
               </div>
+            </GlassCard>
+
+            {/* Alert Level Selection */}
+            <GlassCard variant="subtle" className="mb-6">
+              <div className="flex items-center gap-2 mb-4">
+                <Shield className="w-5 h-5 text-yellow-400" />
+                <span className="font-medium">Alert Level</span>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                {alertLevels.map(({ level, label, color }) => (
+                  <GazeButton
+                    key={level}
+                    variant={alertLevel === level ? "primary" : "default"}
+                    size="sm"
+                    onClick={() => setAlertLevel(level)}
+                    onGazeSelect={() => setAlertLevel(level)}
+                    dwellTime={dwellTime}
+                    className="text-xs"
+                  >
+                    <div className={`w-2 h-2 rounded-full ${color} mr-1`} />
+                    {label}
+                  </GazeButton>
+                ))}
+              </div>
+            </GlassCard>
+
+            {/* Medical Info Toggle */}
+            <GlassCard variant="subtle" className="mb-6">
+              <div 
+                className="flex items-center justify-between cursor-pointer"
+                onClick={() => setShowMedicalInfo(!showMedicalInfo)}
+              >
+                <div className="flex items-center gap-2">
+                  <Heart className="w-5 h-5 text-red-400" />
+                  <span className="font-medium">Medical Information</span>
+                </div>
+                <div className="text-sm text-muted-foreground">
+                  {bloodType || medicalConditions.length > 0 || medications.length > 0 ? "✓ Configured" : "Not set"}
+                </div>
+              </div>
+              {showMedicalInfo && (
+                <div className="mt-4 space-y-2 text-sm">
+                  {patientName && <p><span className="text-muted-foreground">Name:</span> {patientName}</p>}
+                  {bloodType && <p><span className="text-muted-foreground">Blood Type:</span> {bloodType}</p>}
+                  {medicalConditions.length > 0 && <p><span className="text-muted-foreground">Conditions:</span> {medicalConditions.join(", ")}</p>}
+                  {medications.length > 0 && <p><span className="text-muted-foreground">Medications:</span> {medications.join(", ")}</p>}
+                  {emergencyMedicalInfo && <p><span className="text-muted-foreground">Notes:</span> {emergencyMedicalInfo}</p>}
+                </div>
+              )}
             </GlassCard>
 
             {/* Message Selection */}
@@ -119,7 +191,7 @@ export function EmergencyScreen() {
               size="xl"
               onClick={beginEmergencySequence}
               onGazeSelect={beginEmergencySequence}
-              dwellTime={2000}
+              dwellTime={alertLevels.find(a => a.level === alertLevel)?.dwell || 1500}
               className="w-full animate-emergency-pulse"
             >
               <AlertTriangle className="w-8 h-8" />

@@ -2,15 +2,26 @@
 
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
-import { useState, useRef } from "react";
+import {
+  useState,
+  useRef,
+  useEffect,
+  useCallback,
+  type ReactNode,
+  type MouseEventHandler,
+} from "react";
+import { useAppStore } from "@/lib/store";
 
 interface GazeButtonProps {
-  title: string;
+  title?: string;
+  children?: ReactNode;
   variant?: "default" | "primary" | "secondary" | "emergency" | "success";
   size?: "sm" | "md" | "lg" | "xl";
   dwellTime?: number;
+  /** Extra padding (px) when testing gaze vs button bounds; mirrors GazeController stickiness. */
+  gazeStickiness?: number;
   onGazeSelect?: () => void;
-  onClick?: () => void;
+  onClick?: MouseEventHandler<HTMLButtonElement>;
   disabled?: boolean;
   loading?: boolean;
   showProgress?: boolean;
@@ -20,9 +31,11 @@ interface GazeButtonProps {
 
 export function GazeButton({
   title,
+  children,
   variant = "default",
   size = "lg",
   dwellTime = 1500,
+  gazeStickiness = 20,
   onGazeSelect,
   onClick,
   disabled = false,
@@ -34,6 +47,11 @@ export function GazeButton({
   const [isHovering, setIsHovering] = useState(false);
   const [progress, setProgress] = useState(0);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const gazePosition = useAppStore((state) => state.gazePosition);
+  const isCalibrated = useAppStore((state) => state.isCalibrated);
+  const startTimeRef = useRef<number | null>(null);
+  const animationRef = useRef<number | null>(null);
 
   const variants = {
     default: "bg-white/5 border-white/10 hover:bg-white/10 text-white",
@@ -52,6 +70,86 @@ export function GazeButton({
     lg: "px-8 py-4 text-lg min-h-[64px]",
     xl: "px-10 py-5 text-xl min-h-[72px]",
   };
+
+  const stopDwell = useCallback(() => {
+    setIsHovering(false);
+    setProgress(0);
+    startTimeRef.current = null;
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+    if (animationRef.current) {
+      cancelAnimationFrame(animationRef.current);
+      animationRef.current = null;
+    }
+  }, []);
+
+  const startDwell = useCallback(() => {
+    if (disabled || loading) return;
+    if (isHovering) return;
+
+    setIsHovering(true);
+    setProgress(0);
+    startTimeRef.current = Date.now();
+
+    const animate = () => {
+      if (!startTimeRef.current) return;
+      const elapsed = Date.now() - startTimeRef.current;
+      const newProgress = Math.min((elapsed / dwellTime) * 100, 100);
+      setProgress(newProgress);
+
+      if (newProgress >= 100) {
+        onGazeSelect?.();
+        stopDwell();
+      } else {
+        animationRef.current = requestAnimationFrame(animate);
+      }
+    };
+
+    animationRef.current = requestAnimationFrame(animate);
+  }, [disabled, loading, isHovering, dwellTime, onGazeSelect, stopDwell]);
+
+  useEffect(() => {
+    if (!isCalibrated || disabled || loading || !buttonRef.current) {
+      stopDwell();
+      return;
+    }
+
+    const vw = typeof window !== "undefined" ? window.innerWidth : 1;
+    const vh = typeof window !== "undefined" ? window.innerHeight : 1;
+    const clientX = gazePosition.x * vw;
+    const clientY = gazePosition.y * vh;
+
+    const rect = buttonRef.current.getBoundingClientRect();
+    const pad = gazeStickiness;
+    const inBounds =
+      clientX >= rect.left - pad &&
+      clientX <= rect.right + pad &&
+      clientY >= rect.top - pad &&
+      clientY <= rect.bottom + pad;
+
+    if (inBounds && !isHovering) {
+      startDwell();
+    } else if (!inBounds && isHovering) {
+      stopDwell();
+    }
+  }, [
+    gazePosition,
+    isCalibrated,
+    disabled,
+    loading,
+    isHovering,
+    gazeStickiness,
+    startDwell,
+    stopDwell,
+  ]);
+
+  useEffect(() => {
+    return () => {
+      stopDwell();
+    };
+  }, [stopDwell]);
 
   const handleMouseEnter = () => {
     if (disabled || loading) return;
@@ -84,14 +182,21 @@ export function GazeButton({
     }
   };
 
-  const handleClick = () => {
+  const handleClick: MouseEventHandler<HTMLButtonElement> = (event) => {
     if (!disabled && !loading) {
-      onClick?.();
+      onClick?.(event);
     }
   };
 
+  const content = children ?? title;
+
   return (
     <motion.button
+      ref={buttonRef}
+      type="button"
+      data-gaze-interactive="true"
+      data-gaze-skip-global-dwell="true"
+      data-gaze-dwell={dwellTime}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
       onClick={handleClick}
@@ -139,7 +244,7 @@ export function GazeButton({
         ) : (
           <>
             {icon && <span className="text-2xl">{icon}</span>}
-            {title}
+            {content}
           </>
         )}
       </span>

@@ -1,0 +1,14 @@
+{
+  "files.exclude": {
+    "**/__MACOSX": true,
+    "**/._*": true
+  },
+  "search.exclude": {
+    "**/__MACOSX": true,
+    "**/._*": true
+  },
+  "files.watcherExclude": {
+    "**/__MACOSX/**": true,
+    "**/.next/**": true
+  }
+}

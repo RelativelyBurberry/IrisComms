@@ -12,6 +12,8 @@ import {
   Coffee,
   Lightbulb,
 } from "lucide-react";
+import { GazeButton } from "@/components/ui/GazeButton";
+import { useAppStore } from "@/lib/store";
 
 interface GenerativePrediction {
   text: string;
@@ -198,6 +200,7 @@ export function GenerativeAIPredictions({
   const [isGenerating, setIsGenerating] = useState(false);
   const [typingAnimation, setTypingAnimation] = useState("");
   const animationRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const { dwellTime } = useAppStore();
 
   // Generate predictions with typing animation
   useEffect(() => {
@@ -319,20 +322,16 @@ export function GenerativeAIPredictions({
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <AnimatePresence mode="popLayout">
           {predictions.map((prediction, index) => (
-            <motion.button
+            <GazeButton
               key={`${prediction.text}-${index}`}
-              initial={{ opacity: 0, scale: 0.8, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.8 }}
-              transition={{ delay: index * 0.1 }}
-              whileHover={{ scale: 1.03, y: -2 }}
-              whileTap={{ scale: 0.97 }}
+              variant="secondary"
+              size="md"
+              dwellTime={dwellTime}
+              gazeStickiness={18}
               onClick={() => onSelect(prediction.text)}
-              className="relative group p-4 rounded-2xl bg-gradient-to-br from-white/5 to-white/10 backdrop-blur-xl border border-white/10 hover:border-indigo-500/50 transition-all overflow-hidden"
+              onGazeSelect={() => onSelect(prediction.text)}
+              className="relative group p-4 rounded-2xl bg-gradient-to-br from-white/5 to-white/10 backdrop-blur-xl border border-white/10 hover:border-indigo-500/50 transition-all overflow-hidden justify-start h-auto"
             >
-              {/* Glow effect on hover */}
-              <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/0 via-indigo-500/10 to-purple-500/0 opacity-0 group-hover:opacity-100 transition-opacity" />
-
               {/* Confidence indicator */}
               <div className="absolute top-2 right-2 flex items-center gap-1">
                 <div
@@ -344,14 +343,14 @@ export function GenerativeAIPredictions({
                 </span>
               </div>
 
-              <div className="flex items-start gap-3">
+              <div className="flex items-start gap-3 w-full">
                 {prediction.icon && (
-                  <div className="mt-1 p-2 rounded-lg bg-white/5">
+                  <div className="mt-1 p-2 rounded-lg bg-white/5 shrink-0">
                     {prediction.icon}
                   </div>
                 )}
                 <div className="flex-1 text-left">
-                  <p className="text-sm font-medium text-white group-hover:text-indigo-300 transition-colors">
+                  <p className="text-sm font-medium text-white">
                     {prediction.text}
                   </p>
                   <div className="flex items-center gap-2 mt-2">
@@ -371,16 +370,7 @@ export function GenerativeAIPredictions({
                   </div>
                 </div>
               </div>
-
-              {/* Typing cursor animation on hover */}
-              <div className="absolute bottom-2 right-3 opacity-0 group-hover:opacity-100 transition-opacity">
-                <motion.div
-                  animate={{ opacity: [0, 1, 0] }}
-                  transition={{ duration: 1, repeat: Infinity }}
-                  className="w-2 h-4 bg-indigo-400 rounded-sm"
-                />
-              </div>
-            </motion.button>
+            </GazeButton>
           ))}
         </AnimatePresence>
       </div>

@@ -49,6 +49,9 @@ export function Navigation() {
             return (
               <motion.button
                 key={screen}
+                data-gaze-interactive="true"
+                data-gaze-dwell="800"
+                data-gaze-stickiness="30"
                 onClick={() => !isDisabled && setCurrentScreen(screen)}
                 whileHover={!isDisabled ? { scale: 1.1 } : undefined}
                 whileTap={!isDisabled ? { scale: 0.95 } : undefined}

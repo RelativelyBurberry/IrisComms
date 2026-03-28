@@ -6,6 +6,8 @@
   "scripts": {
     "build": "next build",
     "dev": "next dev --webpack",
+    "dev:free": "npm run ports:free && npm run dev",
+    "ports:free": "kill-port 3000 3001 3002 3003 3004 3005 8080 5000 5173 4173 9229",
     "format": "prettier --write \"**/*.{ts,tsx}\"",
     "lint": "eslint",
     "start": "next start",
@@ -60,6 +62,7 @@
     "@types/react-dom": "^19.2.3",
     "eslint": "^9.39.2",
     "eslint-config-next": "16.1.6",
+    "kill-port": "^2.0.1",
     "postcss": "^8",
     "prettier": "^3.8.1",
     "prettier-plugin-tailwindcss": "^0.7.2",

@@ -2,9 +2,9 @@
 
 import { motion } from "framer-motion";
 import { useState, useEffect } from "react";
-import { Volume2, Play, Pause, RotateCcw, Gauge, User } from "lucide-react";
+import { Volume2, Play, Pause, RotateCcw, Gauge, User, Heart, Zap, Moon, Sun, Smile } from "lucide-react";
 import { GlassCard } from "@/components/ui/glass-card";
-import { GazeButton } from "@/components/ui/gaze-button";
+import { GazeButton } from "@/components/ui/GazeButton";
 import { SpeechWave } from "@/components/ui/speech-wave";
 import { Slider } from "@/components/ui/slider";
 import { useAppStore } from "@/lib/store";
@@ -22,10 +22,14 @@ export function SpeechScreen() {
     setVoiceSpeed, 
     isSpeaking, 
     setIsSpeaking,
-    dwellTime 
+    dwellTime,
+    emotion,
+    audioFeedback,
   } = useAppStore();
   
   const [selectedVoice, setSelectedVoice] = useState("default");
+  const [useEmotionVoice, setUseEmotionVoice] = useState(true);
+  const [pitch, setPitch] = useState(1);
   const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
 
   useEffect(() => {
@@ -53,6 +57,35 @@ export function SpeechScreen() {
 
     const utterance = new SpeechSynthesisUtterance(currentText);
     utterance.rate = voiceSpeed;
+    
+    // Emotion-matched voice settings
+    let emotionPitch = 1;
+    let emotionRate = voiceSpeed;
+    
+    if (useEmotionVoice) {
+      switch (emotion.emotion) {
+        case "happy":
+          emotionPitch = 1.2;
+          emotionRate = voiceSpeed * 1.1;
+          break;
+        case "sad":
+          emotionPitch = 0.8;
+          emotionRate = voiceSpeed * 0.85;
+          break;
+        case "stressed":
+        case "pain":
+          emotionPitch = 1.15;
+          emotionRate = voiceSpeed * 1.2;
+          break;
+        case "calm":
+          emotionPitch = 0.95;
+          emotionRate = voiceSpeed * 0.95;
+          break;
+      }
+    }
+    
+    utterance.pitch = pitch * emotionPitch;
+    utterance.rate = emotionRate;
     
     const voice = availableVoices.find((v) => 
       selectedVoice === "male" ? v.name.toLowerCase().includes("male") :
@@ -182,6 +215,72 @@ export function SpeechScreen() {
               </div>
             </GazeButton>
           ))}
+        </div>
+      </GlassCard>
+
+      {/* Emotion-Aware Voice */}
+      <GlassCard variant="default" className="mb-6">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <Heart className="w-5 h-5 text-pink-400" />
+            <span className="font-medium">Emotion-Aware Voice</span>
+          </div>
+          <div className="text-sm text-muted-foreground capitalize">
+            Current: {emotion.emotion}
+          </div>
+        </div>
+        <GazeButton
+          variant={useEmotionVoice ? "primary" : "default"}
+          size="md"
+          onClick={() => setUseEmotionVoice(!useEmotionVoice)}
+          onGazeSelect={() => setUseEmotionVoice(!useEmotionVoice)}
+          dwellTime={dwellTime}
+          className="w-full"
+        >
+          {useEmotionVoice ? (
+            <><Heart className="w-4 h-4" /> Enabled - voice adjusts to your emotion</>
+          ) : (
+            "Enable emotion-matched voice"
+          )}
+        </GazeButton>
+        {useEmotionVoice && (
+          <div className="mt-3 flex gap-2 flex-wrap">
+            {[
+              { e: "happy", icon: Smile, color: "text-yellow-400" },
+              { e: "sad", icon: Moon, color: "text-blue-400" },
+              { e: "calm", icon: Sun, color: "text-green-400" },
+              { e: "stressed", icon: Zap, color: "text-red-400" },
+            ].map(({ e, icon: Icon, color }) => (
+              <div key={e} className={`flex items-center gap-1 px-2 py-1 rounded-full bg-white/5 ${color}`}>
+                <Icon className="w-3 h-3" />
+                <span className="text-xs capitalize">{e}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </GlassCard>
+
+      {/* Pitch Control */}
+      <GlassCard variant="default">
+        <div className="flex items-center gap-3 mb-4">
+          <Zap className="w-5 h-5 text-purple-400" />
+          <span className="font-medium">Voice Pitch</span>
+          <span className="ml-auto text-sm text-muted-foreground">
+            {pitch.toFixed(1)}
+          </span>
+        </div>
+        <Slider
+          value={[pitch]}
+          onValueChange={([value]) => setPitch(value)}
+          min={0.5}
+          max={2}
+          step={0.1}
+          className="w-full"
+        />
+        <div className="flex justify-between text-xs text-muted-foreground mt-2">
+          <span>Lower</span>
+          <span>Normal</span>
+          <span>Higher</span>
         </div>
       </GlassCard>
     </div>

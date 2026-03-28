@@ -56,6 +56,11 @@ interface AppState {
   undo: () => void;
   messages: Message[];
   addMessage: (message: Omit<Message, "id" | "timestamp">) => void;
+  savedMessages: string[];
+  saveMessage: (message: string) => void;
+  removeSavedMessage: (message: string) => void;
+  recentMessages: string[];
+  addRecentMessage: (message: string) => void;
 
   // AI Predictions
   predictions: string[];
@@ -74,7 +79,12 @@ interface AppState {
   // Phrases
   phrases: Array<{ id: string; text: string; category: string }>;
   dynamicPhrases: Array<{ id: string; text: string; category: string }>;
+  customPhrases: Array<{ id: string; text: string; category: string }>;
+  favoritePhrases: string[];
   updateDynamicPhrases: () => void;
+  addCustomPhrase: (text: string, category: string) => void;
+  removeCustomPhrase: (id: string) => void;
+  toggleFavoritePhrase: (text: string) => void;
 
   // Emotion
   emotion: EmotionState;
@@ -183,6 +193,8 @@ interface AppState {
   gazePosition: { x: number; y: number };
   setGazePosition: (x: number, y: number) => void;
   addGazeSample: (x: number, y: number) => void;
+  isTracking: boolean;
+  setIsTracking: (tracking: boolean) => void;
 
   // Demo Mode
   isDemoMode: boolean;
@@ -208,6 +220,32 @@ interface AppState {
   setCareNotes: (notes: string) => void;
   theme: "dark" | "light" | "cosmic";
   setTheme: (theme: "dark" | "light" | "cosmic") => void;
+  
+  // Accessibility & Audio Feedback
+  audioFeedback: boolean;
+  setAudioFeedback: (enabled: boolean) => void;
+  dwellPresets: "fast" | "normal" | "precise";
+  setDwellPresets: (preset: "fast" | "normal" | "precise") => void;
+  visualFeedback: "highlight" | "cursor" | "both";
+  setVisualFeedback: (feedback: "highlight" | "cursor" | "both") => void;
+  
+  // Medical Info for Emergencies
+  bloodType: string;
+  setBloodType: (type: string) => void;
+  medicalConditions: string[];
+  setMedicalConditions: (conditions: string[]) => void;
+  medications: string[];
+  setMedications: (meds: string[]) => void;
+  emergencyMedicalInfo: string;
+  setEmergencyMedicalInfo: (info: string) => void;
+  
+  // Auto-alert & Inactivity Detection
+  inactivityTimeout: number;
+  setInactivityTimeout: (minutes: number) => void;
+  autoAlertEnabled: boolean;
+  setAutoAlertEnabled: (enabled: boolean) => void;
+  lastActivityTime: number;
+  updateLastActivity: () => void;
 }
 
 const defaultPhrases = [
@@ -303,6 +341,30 @@ export const useAppStore = create<AppState>((set, get) => ({
         },
       ],
     })),
+  savedMessages: [],
+  saveMessage: (message) =>
+    set((state) => {
+      if (!message.trim() || state.savedMessages.includes(message)) {
+        return state;
+      }
+      const newSaved = [message, ...state.savedMessages].slice(0, 20);
+      void postJson("/api/state", { savedMessages: newSaved });
+      return { savedMessages: newSaved };
+    }),
+  removeSavedMessage: (message) =>
+    set((state) => {
+      const newSaved = state.savedMessages.filter((m) => m !== message);
+      void postJson("/api/state", { savedMessages: newSaved });
+      return { savedMessages: newSaved };
+    }),
+  recentMessages: [],
+  addRecentMessage: (message) =>
+    set((state) => {
+      if (!message.trim() || message.length < 3) return state;
+      const filtered = state.recentMessages.filter((m) => m !== message);
+      const newRecent = [message, ...filtered].slice(0, 10);
+      return { recentMessages: newRecent };
+    }),
 
   predictions: [
     "I need help",
@@ -384,10 +446,38 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   phrases: defaultPhrases,
   dynamicPhrases: [],
+  customPhrases: [],
+  favoritePhrases: [],
   updateDynamicPhrases: () => {
     const dynamicPhrases = aiService.getDynamicPhrases();
     set({ dynamicPhrases });
   },
+  addCustomPhrase: (text, category) =>
+    set((state) => {
+      const newPhrase = {
+        id: Math.random().toString(36).substr(2, 9),
+        text,
+        category,
+      };
+      const newCustom = [...state.customPhrases, newPhrase];
+      void postJson("/api/state", { customPhrases: newCustom });
+      return { customPhrases: newCustom };
+    }),
+  removeCustomPhrase: (id) =>
+    set((state) => {
+      const newCustom = state.customPhrases.filter((p) => p.id !== id);
+      void postJson("/api/state", { customPhrases: newCustom });
+      return { customPhrases: newCustom };
+    }),
+  toggleFavoritePhrase: (text) =>
+    set((state) => {
+      const isFav = state.favoritePhrases.includes(text);
+      const newFavs = isFav
+        ? state.favoritePhrases.filter((t) => t !== text)
+        : [...state.favoritePhrases, text];
+      void postJson("/api/state", { favoritePhrases: newFavs });
+      return { favoritePhrases: newFavs };
+    }),
 
   emotion: {
     emotion: "neutral",
@@ -674,4 +764,58 @@ export const useAppStore = create<AppState>((set, get) => ({
     set({ theme });
     void postJson("/api/state", { settings: { theme } });
   },
+  
+  // Accessibility & Audio Feedback
+  audioFeedback: true,
+  setAudioFeedback: (enabled) => {
+    set({ audioFeedback: enabled });
+    void postJson("/api/state", { settings: { audioFeedback: enabled } });
+  },
+  dwellPresets: "normal",
+  setDwellPresets: (preset) => {
+    const dwellTimes = { fast: 500, normal: 800, precise: 1500 };
+    set({ dwellPresets: preset, dwellTime: dwellTimes[preset] });
+    void postJson("/api/state", { settings: { dwellPresets: preset, dwellTime: dwellTimes[preset] } });
+  },
+  visualFeedback: "both",
+  setVisualFeedback: (feedback) => {
+    set({ visualFeedback: feedback });
+    void postJson("/api/state", { settings: { visualFeedback: feedback } });
+  },
+  
+  // Medical Info for Emergencies
+  bloodType: "",
+  setBloodType: (type) => {
+    set({ bloodType: type });
+    void postJson("/api/state", { settings: { bloodType: type } });
+  },
+  medicalConditions: [],
+  setMedicalConditions: (conditions) => {
+    set({ medicalConditions: conditions });
+    void postJson("/api/state", { settings: { medicalConditions: conditions } });
+  },
+  medications: [],
+  setMedications: (meds) => {
+    set({ medications: meds });
+    void postJson("/api/state", { settings: { medications: meds } });
+  },
+  emergencyMedicalInfo: "",
+  setEmergencyMedicalInfo: (info) => {
+    set({ emergencyMedicalInfo: info });
+    void postJson("/api/state", { settings: { emergencyMedicalInfo: info } });
+  },
+  
+  // Auto-alert & Inactivity Detection
+  inactivityTimeout: 0,
+  setInactivityTimeout: (minutes) => {
+    set({ inactivityTimeout: minutes });
+    void postJson("/api/state", { settings: { inactivityTimeout: minutes } });
+  },
+  autoAlertEnabled: false,
+  setAutoAlertEnabled: (enabled) => {
+    set({ autoAlertEnabled: enabled });
+    void postJson("/api/state", { settings: { autoAlertEnabled: enabled } });
+  },
+  lastActivityTime: Date.now(),
+  updateLastActivity: () => set({ lastActivityTime: Date.now() }),
 }));
